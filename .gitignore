@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+dist/
+build/
+apps/*/dist/
+packages/*/dist/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Cache & local data
+.cache/
+.local/
+data/
+storage/
+exports/
+demo_output/
+*.log
+
+# Test coverage & reports
+coverage/
+test-results/
+playwright-report/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Antigravity artifacts
+.gemini/
