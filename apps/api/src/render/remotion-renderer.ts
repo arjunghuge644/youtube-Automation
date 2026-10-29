@@ -4,6 +4,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { TechnicalExplainerStoryboard, TechnicalExplainerScene } from '@creatorflow/shared';
 import { TTSService } from '../providers/tts/tts-service.js';
+import { LocalSpeechSynthesizer } from '../providers/tts/local-synthesizer.js';
 import { AssetValidator } from '../media/asset-validator.js';
 
 const execFileAsync = promisify(execFile);
@@ -18,6 +19,7 @@ export interface RenderExplainerOptions {
 
 export class RemotionRendererService {
   private tts: TTSService;
+  private localFallback = new LocalSpeechSynthesizer();
   private validator = new AssetValidator();
 
   constructor(ttsService?: TTSService) {
@@ -82,8 +84,30 @@ export class RemotionRendererService {
           if (ttsResult.durationSeconds && ttsResult.durationSeconds > 0) {
             sceneDuration = Math.max(2.5, Number(ttsResult.durationSeconds.toFixed(2)));
           }
-        } catch (ttsErr) {
-          console.warn(`[RemotionRendererService] TTS generation failed for scene ${scene.sceneNumber}, using planned duration:`, ttsErr);
+        } catch (ttsErr: any) {
+          console.warn(
+            `[RemotionRendererService] Primary TTS generation failed for scene ${scene.sceneNumber}: ${ttsErr.message}. Falling back to local synthesizer.`
+          );
+          try {
+            const fallbackResult = await this.localFallback.synthesizeSpeech({
+              taskId: `task_fallback_${scene.id}`,
+              text: scene.narration,
+              language: 'en',
+              projectId: 'temp_explainer',
+              sceneId: scene.id,
+            });
+            const audioBuffer = await fs.readFile(fallbackResult.filePath);
+            const mimeType = fallbackResult.filePath.endsWith('.aac') ? 'audio/aac' : 'audio/wav';
+            sceneAudioUrl = `data:${mimeType};base64,${audioBuffer.toString('base64')}`;
+            if (fallbackResult.durationSeconds && fallbackResult.durationSeconds > 0) {
+              sceneDuration = Math.max(2.5, Number(fallbackResult.durationSeconds.toFixed(2)));
+            }
+          } catch (fallbackErr) {
+            console.error(
+              `[RemotionRendererService] Fallback local synthesis also failed for scene ${scene.sceneNumber}:`,
+              fallbackErr
+            );
+          }
         }
       }
 

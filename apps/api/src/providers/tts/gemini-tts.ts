@@ -11,7 +11,21 @@ export class GeminiTTSProvider implements AudioProvider {
   readonly id = 'gemini_tts';
   readonly name = 'Google Gemini Multimodal Audio TTS';
 
-  constructor(private apiKey?: string) {}
+  private candidateModels: string[];
+
+  constructor(private apiKey?: string, model?: string) {
+    const configuredModel = model || process.env.GEMINI_TTS_MODEL;
+    this.candidateModels = Array.from(
+      new Set(
+        [
+          configuredModel,
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-preview-tts',
+          'gemini-2.0-flash-exp',
+        ].filter(Boolean) as string[]
+      )
+    );
+  }
 
   isConfigured(): boolean {
     return Boolean(this.apiKey && this.apiKey.trim().length > 0);
@@ -19,7 +33,7 @@ export class GeminiTTSProvider implements AudioProvider {
 
   /**
    * Pre-selects prebuilt Gemini voice based on style or explicit voice name.
-   * Gemini 2.0 voices: 'Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede'
+   * Gemini voices: 'Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede'
    */
   resolveVoiceName(style?: string, requestedVoice?: string): string {
     if (requestedVoice && ['Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede'].includes(requestedVoice)) {
@@ -81,38 +95,61 @@ export class GeminiTTSProvider implements AudioProvider {
         ? `Please read the following Hinglish script clearly and naturally for an Indian tech audience:\n\n${text}`
         : `Please read the following narration naturally, clearly, and engagingly at standard speech pace:\n\n${text}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
+    let lastError: Error | null = null;
+    let data: any = null;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: promptText }],
+    for (const model of this.candidateModels) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-        ],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName,
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: promptText }],
+              },
+            ],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName,
+                  },
+                },
               },
             },
-          },
-        },
-      }),
-    });
+          }),
+        });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini TTS API failed with status ${response.status}: ${errText}`);
+        if (response.ok) {
+          data = await response.json();
+          // Promote working model to front of candidates for subsequent scenes
+          if (this.candidateModels[0] !== model) {
+            this.candidateModels = [model, ...this.candidateModels.filter((m) => m !== model)];
+          }
+          break;
+        }
+
+        const errText = await response.text();
+        lastError = new Error(`Gemini TTS API (${model}) failed with status ${response.status}: ${errText}`);
+
+        // If not 404 (e.g. 400 bad key, 429 quota), don't hammer other models
+        if (response.status !== 404) {
+          break;
+        }
+      } catch (fetchErr: any) {
+        lastError = fetchErr;
+      }
     }
 
-    const data = await response.json();
+    if (!data) {
+      throw lastError || new Error('Gemini TTS API failed across all candidate models.');
+    }
     const candidate = data.candidates?.[0];
     const part = candidate?.content?.parts?.find((p: any) => p.inlineData);
 
@@ -188,3 +225,4 @@ export class GeminiTTSProvider implements AudioProvider {
     return JSON.parse(stdout);
   }
 }
+

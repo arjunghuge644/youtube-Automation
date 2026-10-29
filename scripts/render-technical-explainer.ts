@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import path from 'path';
 import fs from 'fs/promises';
 import { execFile } from 'child_process';
