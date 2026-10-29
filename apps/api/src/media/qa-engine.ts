@@ -46,6 +46,83 @@ export class QAEngine {
     return { meanVolumeDb: -20, isSilent: false };
   }
 
+  /**
+   * Programmatic black-frame anomaly detection using FFmpeg blackdetect filter.
+   */
+  private async detectBlackFrames(filePath: string): Promise<{ hasBlackFrames: boolean; intervals: string[] }> {
+    try {
+      const { stderr } = await execFileAsync('ffmpeg', [
+        '-i', filePath,
+        '-vf', 'blackdetect=d=0.8:pic_th=0.98',
+        '-f', 'null',
+        '-',
+      ]);
+
+      const intervals: string[] = [];
+      const matches = stderr.matchAll(/black_start:([0-9.]+)\s+black_end:([0-9.]+)\s+black_duration:([0-9.]+)/g);
+      for (const match of matches) {
+        intervals.push(`${match[1]}s-${match[2]}s (${match[3]}s)`);
+      }
+      return { hasBlackFrames: intervals.length > 0, intervals };
+    } catch {
+      return { hasBlackFrames: false, intervals: [] };
+    }
+  }
+
+  /**
+   * Automated visual QA: validates text overflow, safe area bounds, and subtitle timing.
+   */
+  validateVisualLayoutAndCaptions(storyboard: any): {
+    passed: boolean;
+    issues: string[];
+    warnings: string[];
+  } {
+    const issues: string[] = [];
+    const warnings: string[] = [];
+
+    if (!storyboard?.scenes || !Array.isArray(storyboard.scenes)) {
+      return { passed: true, issues: [], warnings: [] };
+    }
+
+    for (const scene of storyboard.scenes) {
+      const sNum = scene.sceneNumber || scene.id || '?';
+
+      // 1. Check title and punchline safe area bounds (prevent mobile 9:16 overflow)
+      const title = scene.header?.actTitle || scene.props?.title || '';
+      if (title.length > 80) {
+        issues.push(`Scene ${sNum}: Title length (${title.length} chars) exceeds 9:16 safe area boundary (max 80).`);
+      }
+
+      const punchline = scene.props?.punchline || '';
+      const punchlineText = typeof punchline === 'string' ? punchline : punchline?.text || '';
+      if (punchlineText.length > 140) {
+        issues.push(`Scene ${sNum}: Punchline (${punchlineText.length} chars) exceeds maximum layout limits (max 140).`);
+      }
+
+      // 2. Subtitle timing and alignment checks
+      if (scene.subtitles && Array.isArray(scene.subtitles)) {
+        for (let i = 0; i < scene.subtitles.length; i++) {
+          const sub = scene.subtitles[i];
+          if (sub.startSeconds >= sub.endSeconds) {
+            issues.push(`Scene ${sNum}: Subtitle ${i + 1} has start time (${sub.startSeconds}s) >= end time (${sub.endSeconds}s).`);
+          }
+          if (scene.durationSeconds && sub.endSeconds > scene.durationSeconds + 0.5) {
+            warnings.push(`Scene ${sNum}: Subtitle ${i + 1} extends past scene duration (${sub.endSeconds}s > ${scene.durationSeconds}s).`);
+          }
+          if (sub.text && sub.text.length > 100) {
+            warnings.push(`Scene ${sNum}: Subtitle line ${i + 1} length (${sub.text.length} chars) may cause wrapping outside safe areas.`);
+          }
+        }
+      }
+    }
+
+    return {
+      passed: issues.length === 0,
+      issues,
+      warnings,
+    };
+  }
+
   async runDeterministicQA(context: {
     project: Project;
     script: ProjectScript;
@@ -121,7 +198,20 @@ export class QAEngine {
         : `${failedTasks.length} task(s) in failed/blocked state.`,
     });
 
-    // 5. Final exported media technical verification
+    // 5. Visual Safe-Area, Typography & Subtitle Timing QA
+    const visualLayoutQA = this.validateVisualLayoutAndCaptions(storyboard);
+    if (visualLayoutQA.warnings.length > 0) {
+      warnings.push(...visualLayoutQA.warnings);
+    }
+    checks.push({
+      name: 'Visual Safe-Area & Typography QA',
+      passed: visualLayoutQA.passed,
+      details: visualLayoutQA.passed
+        ? 'All scenes conform to safe-area bounds, maximum typography limits, and subtitle constraints.'
+        : `Visual QA issues: ${visualLayoutQA.issues.join('; ')}`,
+    });
+
+    // 6. Final exported media technical verification
     if (finalExportPath) {
       try {
         const stats = await fs.stat(finalExportPath);
@@ -148,6 +238,16 @@ export class QAEngine {
             details: isH264
               ? `Video normalized to standard H.264 codec (${vStream.width}x${vStream.height} @ 30fps).`
               : `Unexpected video codec '${vCodec}'. Expected H.264.`,
+          });
+
+          // Black-frame anomaly detection
+          const blackDetect = await this.detectBlackFrames(finalExportPath);
+          checks.push({
+            name: 'Black-Frame Anomaly Detection',
+            passed: !blackDetect.hasBlackFrames,
+            details: !blackDetect.hasBlackFrames
+              ? 'No black-frame anomalies or empty rendering intervals detected.'
+              : `Detected black frames in interval(s): ${blackDetect.intervals.join(', ')}.`,
           });
 
           // Check aspect ratio

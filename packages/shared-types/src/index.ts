@@ -215,6 +215,15 @@ export const remotionExplainerComponentTypes = [
   'geospatial_map',
   'system_architecture',
   'kinetic_typography',
+  'flowchart',
+  'comparison',
+  'process_timeline',
+  'concept_breakdown',
+  'statistics',
+  'data_flow',
+  'ui_walkthrough',
+  'network_diagram',
+  'generic_infographic',
 ] as const;
 export const remotionExplainerComponentTypeSchema = z.enum(remotionExplainerComponentTypes);
 export type RemotionExplainerComponentType = z.infer<typeof remotionExplainerComponentTypeSchema>;
@@ -372,6 +381,214 @@ export const kineticTypographyPropsSchema = z.object({
 }).strict();
 export type KineticTypographyProps = z.infer<typeof kineticTypographyPropsSchema>;
 
+export const flowchartPropsSchema = z.object({
+  title: z.string().trim().default('SYSTEM WORKFLOW'),
+  subtitle: z.string().trim().optional(),
+  nodes: z.array(z.object({
+    id: z.string().trim(),
+    label: z.string().trim(),
+    sublabel: z.string().trim().optional(),
+    type: z.enum(['start', 'process', 'decision', 'end', 'database']).default('process'),
+    status: z.enum(['active', 'success', 'warning', 'error', 'default']).default('default'),
+  }).strict()).min(2),
+  connections: z.array(z.object({
+    from: z.string().trim(),
+    to: z.string().trim(),
+    label: z.string().trim().optional(),
+    animated: z.boolean().default(true),
+    style: z.enum(['solid', 'dashed']).default('solid'),
+  }).strict()).default([]),
+  activeNodeId: z.string().trim().optional(),
+  summaryBadge: z.object({
+    text: z.string().trim(),
+    type: z.enum(['info', 'success', 'warning']).default('info'),
+  }).strict().optional(),
+}).strict();
+export type FlowchartProps = z.infer<typeof flowchartPropsSchema>;
+
+export const comparisonPropsSchema = z.object({
+  title: z.string().trim().default('CORE COMPARISON'),
+  versusLabel: z.string().trim().default('VS'),
+  leftSide: z.object({
+    title: z.string().trim(),
+    subtitle: z.string().trim().optional(),
+    badge: z.string().trim().optional(),
+    accentColor: z.string().trim().default('#38BDF8'),
+    items: z.array(z.object({
+      title: z.string().trim(),
+      description: z.string().trim().optional(),
+      icon: z.enum(['check', 'cross', 'warning', 'info', 'neutral']).default('neutral'),
+    }).strict()).default([]),
+  }).strict(),
+  rightSide: z.object({
+    title: z.string().trim(),
+    subtitle: z.string().trim().optional(),
+    badge: z.string().trim().optional(),
+    accentColor: z.string().trim().default('#F43F5E'),
+    items: z.array(z.object({
+      title: z.string().trim(),
+      description: z.string().trim().optional(),
+      icon: z.enum(['check', 'cross', 'warning', 'info', 'neutral']).default('neutral'),
+    }).strict()).default([]),
+  }).strict(),
+  verdict: z.object({
+    text: z.string().trim(),
+    winner: z.enum(['left', 'right', 'both', 'context_dependent']).default('context_dependent'),
+    highlight: z.string().trim().optional(),
+  }).strict().optional(),
+}).strict();
+export type ComparisonProps = z.infer<typeof comparisonPropsSchema>;
+
+export const processTimelinePropsSchema = z.object({
+  title: z.string().trim().default('EXECUTION LIFECYCLE'),
+  subtitle: z.string().trim().optional(),
+  steps: z.array(z.object({
+    stepNumber: z.number().int().min(1),
+    title: z.string().trim(),
+    description: z.string().trim().optional(),
+    status: z.enum(['completed', 'in_progress', 'pending', 'failed']).default('pending'),
+    badge: z.string().trim().optional(),
+    duration: z.string().trim().optional(),
+  }).strict()).min(2),
+  currentStepIndex: z.number().int().min(0).default(0),
+  metric: z.object({
+    label: z.string().trim(),
+    value: z.string().trim(),
+  }).strict().optional(),
+}).strict();
+export type ProcessTimelineProps = z.infer<typeof processTimelinePropsSchema>;
+
+export const conceptBreakdownPropsSchema = z.object({
+  coreConcept: z.object({
+    title: z.string().trim(),
+    category: z.string().trim().optional(),
+    tag: z.string().trim().optional(),
+  }).strict(),
+  pillars: z.array(z.object({
+    title: z.string().trim(),
+    description: z.string().trim(),
+    icon: z.string().trim().optional(),
+    tag: z.string().trim().optional(),
+    accentColor: z.string().trim().optional(),
+  }).strict()).min(2).max(6),
+  takeaway: z.object({
+    headline: z.string().trim(),
+    subtext: z.string().trim().optional(),
+  }).strict().optional(),
+}).strict();
+export type ConceptBreakdownProps = z.infer<typeof conceptBreakdownPropsSchema>;
+
+export const statisticsPropsSchema = z.object({
+  headline: z.string().trim(),
+  subheadline: z.string().trim().optional(),
+  primaryStat: z.object({
+    value: z.union([z.string().trim(), z.number()]),
+    label: z.string().trim(),
+    change: z.string().trim().optional(),
+    trend: z.enum(['up', 'down', 'neutral']).default('up'),
+    unit: z.string().trim().optional(),
+  }).strict(),
+  secondaryStats: z.array(z.object({
+    value: z.union([z.string().trim(), z.number()]),
+    label: z.string().trim(),
+    detail: z.string().trim().optional(),
+    accentColor: z.string().trim().optional(),
+  }).strict()).default([]),
+  chartType: z.enum(['bars', 'progress', 'comparison', 'kpi']).default('bars'),
+  chartData: z.array(z.object({
+    label: z.string().trim(),
+    value: z.number(),
+    maxValue: z.number().optional(),
+    color: z.string().trim().optional(),
+  }).strict()).default([]),
+}).strict();
+export type StatisticsProps = z.infer<typeof statisticsPropsSchema>;
+
+export const dataFlowPropsSchema = z.object({
+  title: z.string().trim().default('REALTIME DATA PIPELINE'),
+  stages: z.array(z.object({
+    id: z.string().trim(),
+    name: z.string().trim(),
+    type: z.enum(['source', 'queue', 'processor', 'storage', 'client']).default('processor'),
+    throughput: z.string().trim().optional(),
+    status: z.enum(['idle', 'processing', 'congested', 'healthy']).default('healthy'),
+  }).strict()).min(2),
+  packetLabel: z.string().trim().default('PAYLOAD'),
+  metrics: z.array(z.object({
+    label: z.string().trim(),
+    value: z.string().trim(),
+  }).strict()).default([]),
+  alert: z.object({
+    message: z.string().trim(),
+    severity: z.enum(['warning', 'critical', 'info']).default('info'),
+  }).strict().optional(),
+}).strict();
+export type DataFlowProps = z.infer<typeof dataFlowPropsSchema>;
+
+export const uiWalkthroughPropsSchema = z.object({
+  appName: z.string().trim().default('CreatorFlow AI'),
+  appUrl: z.string().trim().default('app.creatorflow.io'),
+  windowTitle: z.string().trim().default('Interactive Dashboard'),
+  highlights: z.array(z.object({
+    targetArea: z.string().trim(),
+    title: z.string().trim(),
+    description: z.string().trim(),
+    badge: z.string().trim().optional(),
+    stepNumber: z.number().int().optional(),
+  }).strict()).min(1),
+  callToAction: z.object({
+    text: z.string().trim(),
+    buttonLabel: z.string().trim().default('Get Started Now'),
+  }).strict().optional(),
+  previewMetrics: z.array(z.object({
+    label: z.string().trim(),
+    value: z.string().trim(),
+  }).strict()).default([]),
+}).strict();
+export type UIWalkthroughProps = z.infer<typeof uiWalkthroughPropsSchema>;
+
+export const networkDiagramPropsSchema = z.object({
+  title: z.string().trim().default('DISTRIBUTED TOPOLOGY'),
+  topology: z.enum(['mesh', 'star', 'hub_spoke', 'cluster', 'tree']).default('hub_spoke'),
+  centralNode: z.object({
+    id: z.string().trim(),
+    label: z.string().trim(),
+    role: z.string().trim().default('COORDINATOR / GATEWAY'),
+    status: z.enum(['active', 'standby', 'overloaded']).default('active'),
+  }).strict(),
+  peripheralNodes: z.array(z.object({
+    id: z.string().trim(),
+    label: z.string().trim(),
+    role: z.string().trim().optional(),
+    latencyMs: z.number().optional(),
+    status: z.enum(['healthy', 'degraded', 'offline']).default('healthy'),
+  }).strict()).min(2),
+  bandwidthMetric: z.string().trim().optional(),
+  securityBadge: z.string().trim().optional(),
+}).strict();
+export type NetworkDiagramProps = z.infer<typeof networkDiagramPropsSchema>;
+
+export const genericInfographicPropsSchema = z.object({
+  header: z.object({
+    title: z.string().trim(),
+    subtitle: z.string().trim().optional(),
+    badge: z.string().trim().optional(),
+  }).strict(),
+  sections: z.array(z.object({
+    title: z.string().trim(),
+    body: z.string().trim(),
+    highlight: z.string().trim().optional(),
+    badge: z.string().trim().optional(),
+    accentColor: z.string().trim().optional(),
+  }).strict()).min(1).max(5),
+  callout: z.object({
+    quote: z.string().trim(),
+    authorOrSource: z.string().trim().optional(),
+  }).strict().optional(),
+  footerTag: z.string().trim().optional(),
+}).strict();
+export type GenericInfographicProps = z.infer<typeof genericInfographicPropsSchema>;
+
 export const explainerHeaderSchema = z.object({
   topicTag: z.string().trim().min(1).max(60).default('SYSTEM DESIGN · 001'),
   channelHandle: z.string().trim().min(1).max(60).default('@creatorflow'),
@@ -392,6 +609,40 @@ export const remotionExplainerStrategySchema = z.object({
   props: z.record(z.string(), z.any()),
 }).strict();
 export type RemotionExplainerStrategy = z.infer<typeof remotionExplainerStrategySchema>;
+
+export const explainerPropSchemas = {
+  interview_question: interviewQuestionPropsSchema,
+  database_transaction: databaseTransactionPropsSchema,
+  cache_layer: cacheLayerPropsSchema,
+  search_engine: searchEnginePropsSchema,
+  geospatial_map: geospatialMapPropsSchema,
+  system_architecture: systemArchitecturePropsSchema,
+  kinetic_typography: kineticTypographyPropsSchema,
+  flowchart: flowchartPropsSchema,
+  comparison: comparisonPropsSchema,
+  process_timeline: processTimelinePropsSchema,
+  concept_breakdown: conceptBreakdownPropsSchema,
+  statistics: statisticsPropsSchema,
+  data_flow: dataFlowPropsSchema,
+  ui_walkthrough: uiWalkthroughPropsSchema,
+  network_diagram: networkDiagramPropsSchema,
+  generic_infographic: genericInfographicPropsSchema,
+} as const;
+
+export function validateExplainerComponentProps(
+  componentType: RemotionExplainerComponentType,
+  props: unknown
+): { success: true; data: any } | { success: false; error: string } {
+  const schema = explainerPropSchemas[componentType];
+  if (!schema) {
+    return { success: false, error: `Unknown explainer component type: ${componentType}` };
+  }
+  const result = schema.safeParse(props);
+  if (!result.success) {
+    return { success: false, error: result.error.message };
+  }
+  return { success: true, data: result.data };
+}
 
 export const renderStrategySchema = z.discriminatedUnion('type', [
   motionGraphicsStrategySchema,

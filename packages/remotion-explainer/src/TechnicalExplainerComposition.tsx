@@ -9,6 +9,15 @@ import { SearchEngineScene } from './components/SearchEngineScene';
 import { GeospatialMapScene } from './components/GeospatialMapScene';
 import { SystemArchitectureScene } from './components/SystemArchitectureScene';
 import { KineticTypographyScene } from './components/KineticTypographyScene';
+import { FlowchartScene } from './components/FlowchartScene';
+import { ComparisonScene } from './components/ComparisonScene';
+import { ProcessTimelineScene } from './components/ProcessTimelineScene';
+import { ConceptBreakdownScene } from './components/ConceptBreakdownScene';
+import { StatisticsScene } from './components/StatisticsScene';
+import { DataFlowScene } from './components/DataFlowScene';
+import { UIWalkthroughScene } from './components/UIWalkthroughScene';
+import { NetworkDiagramScene } from './components/NetworkDiagramScene';
+import { GenericInfographicScene } from './components/GenericInfographicScene';
 import { SynchronizedCaptions } from './components/SynchronizedCaptions';
 import type { TechnicalExplainerStoryboard, TechnicalExplainerScene } from '@creatorflow/shared';
 
@@ -33,8 +42,26 @@ export const SceneDispatcher: React.FC<{
         return <SystemArchitectureScene props={scene.props as any} />;
       case 'kinetic_typography':
         return <KineticTypographyScene props={scene.props as any} />;
+      case 'flowchart':
+        return <FlowchartScene props={scene.props as any} />;
+      case 'comparison':
+        return <ComparisonScene props={scene.props as any} />;
+      case 'process_timeline':
+        return <ProcessTimelineScene props={scene.props as any} />;
+      case 'concept_breakdown':
+        return <ConceptBreakdownScene props={scene.props as any} />;
+      case 'statistics':
+        return <StatisticsScene props={scene.props as any} />;
+      case 'data_flow':
+        return <DataFlowScene props={scene.props as any} />;
+      case 'ui_walkthrough':
+        return <UIWalkthroughScene props={scene.props as any} />;
+      case 'network_diagram':
+        return <NetworkDiagramScene props={scene.props as any} />;
+      case 'generic_infographic':
+        return <GenericInfographicScene props={scene.props as any} />;
       default:
-        return <KineticTypographyScene props={scene.props as any} />;
+        return <GenericInfographicScene props={scene.props as any} />;
     }
   };
 

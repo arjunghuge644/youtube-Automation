@@ -12,19 +12,45 @@ export class LocalSpeechSynthesizer implements AudioProvider {
   readonly name = 'CreatorFlow Local Speech Synthesizer';
 
   /**
+   * Preprocesses text to ensure clear pronunciation of technical terminology and acronyms.
+   */
+  normalizeTechnicalPronunciation(text: string): string {
+    return text
+      .replace(/\bAuthN\b/g, 'Auth-N')
+      .replace(/\bAuthZ\b/g, 'Auth-Z')
+      .replace(/\bQPS\b/g, 'Q-P-S')
+      .replace(/\bJWT\b/g, 'J-W-T')
+      .replace(/\bOAuth\b/g, 'O-Auth')
+      .replace(/\bNoSQL\b/g, 'No-S-Q-L')
+      .replace(/\bAPI\b/g, 'A-P-I')
+      .replace(/\bLRU\b/g, 'L-R-U')
+      .replace(/\bFIFO\b/g, 'F-I-F-O')
+      .replace(/\bTTL\b/g, 'T-T-L')
+      .replace(/\bDDoS\b/g, 'D-Dos')
+      .replace(/\bACID\b/g, 'Acid')
+      .replace(/\bUI\b/g, 'U-I')
+      .replace(/\bUX\b/g, 'U-X')
+      .replace(/\bSaaS\b/g, 'Sass');
+  }
+
+  /**
    * Estimate realistic speech duration based on word count and language cadence.
    * English standard narration: ~140 WPM (~2.33 words/sec).
-   * Hindi / Hinglish narration: ~115 WPM (~1.92 words/sec).
+   * Hindi narration: ~115 WPM (~1.92 words/sec).
+   * Hinglish narration: ~125 WPM (~2.08 words/sec).
    */
-  calculateSpeechDuration(text: string, language: 'hi' | 'en' | 'hinglish'): number {
+  calculateSpeechDuration(text: string, language: 'hi' | 'en' | 'hinglish' = 'en'): number {
     const words = text.trim().split(/\s+/).filter(Boolean);
     const count = words.length;
     if (count === 0) return 1.5;
 
-    const wordsPerSecond = language === 'en' ? 2.33 : 1.92;
+    let wordsPerSecond = 2.33;
+    if (language === 'hi') wordsPerSecond = 1.92;
+    else if (language === 'hinglish') wordsPerSecond = 2.08;
+
     const rawSeconds = count / wordsPerSecond;
-    // Add natural 0.4s pause padding at end
-    const total = Math.max(1.5, rawSeconds + 0.4);
+    // Add natural 0.4s pause padding at end to prevent clipping
+    const total = Math.max(1.8, rawSeconds + 0.45);
     return Number(total.toFixed(2));
   }
 
@@ -34,13 +60,16 @@ export class LocalSpeechSynthesizer implements AudioProvider {
     durationSeconds: number;
     filePath: string;
   }> {
-    const { text, language = 'en', projectId, sceneId } = request;
-    const duration = this.calculateSpeechDuration(text, language);
+    const rawText = request.text || '';
+    const normalizedText = this.normalizeTechnicalPronunciation(rawText);
+    const language = (request.language as 'hi' | 'en' | 'hinglish') || 'en';
+    const duration = this.calculateSpeechDuration(normalizedText, language);
+    const { projectId, sceneId } = request;
 
     const storageDir = path.resolve(process.cwd(), 'storage', 'projects', projectId, 'audio');
     await fs.mkdir(storageDir, { recursive: true });
 
-    const hash = crypto.createHash('md5').update(`${text}:${language}`).digest('hex').substring(0, 10);
+    const hash = crypto.createHash('md5').update(`${normalizedText}:${language}`).digest('hex').substring(0, 10);
     const filename = `${sceneId || 'narration'}_${hash}.aac`;
     const outputPath = path.join(storageDir, filename);
 

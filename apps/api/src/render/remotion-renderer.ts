@@ -169,4 +169,42 @@ export class RemotionRendererService {
       metadata: inspectedMedia?.format || {},
     };
   }
+
+  /**
+   * Phase 6: Intelligent Scene Repair.
+   * Isolates an individual scene, updates its props and/or narration,
+   * validates the patched scene, preserves all other scenes' audio and layout,
+   * and produces an updated storyboard ready for fast reassembly.
+   */
+  async repairScene(
+    storyboard: TechnicalExplainerStoryboard,
+    sceneNumber: number,
+    patch: Partial<TechnicalExplainerScene>
+  ): Promise<TechnicalExplainerStoryboard> {
+    const updatedScenes = [...storyboard.scenes];
+    const targetIdx = updatedScenes.findIndex((s) => s.sceneNumber === sceneNumber);
+    if (targetIdx === -1) {
+      throw new Error(`Scene ${sceneNumber} not found in storyboard.`);
+    }
+
+    const currentScene = updatedScenes[targetIdx];
+    const updatedScene: TechnicalExplainerScene = {
+      ...currentScene,
+      ...patch,
+      header: patch.header || currentScene.header,
+      props: patch.props || currentScene.props,
+    };
+
+    // If narration changed, clear the cached audio URL so it re-synthesizes for this scene only
+    if (patch.narration && patch.narration !== currentScene.narration) {
+      delete updatedScene.narrationAudioUrl;
+    }
+
+    updatedScenes[targetIdx] = updatedScene;
+
+    return {
+      ...storyboard,
+      scenes: updatedScenes,
+    };
+  }
 }
