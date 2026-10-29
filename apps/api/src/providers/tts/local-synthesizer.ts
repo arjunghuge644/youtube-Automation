@@ -91,13 +91,13 @@ export class LocalSpeechSynthesizer implements AudioProvider {
       // File does not exist, synthesize it
     }
 
-    // Generate broadcast-compliant speech audio with vocal formant harmonics using FFmpeg
-    // Fundamental frequency ~140Hz with formants at 500Hz, 1500Hz, 2500Hz and subtle AM cadence
+    // Generate audible vocal cadence audio across mid-range frequencies (440Hz, 880Hz, 1500Hz)
+    // with 4.5Hz speech-syllable modulation so it is clearly audible on all laptop and mobile speakers
     const filter = [
-      `aevalsrc=exprs='0.25*sin(2*PI*140*t)*sin(2*PI*4*t)+0.15*sin(2*PI*500*t)+0.08*sin(2*PI*1500*t)+0.04*sin(2*PI*2500*t)':s=44100:d=${duration}`,
+      `aevalsrc=exprs='(0.32*sin(2*PI*440*t)+0.22*sin(2*PI*880*t)+0.12*sin(2*PI*1500*t))*(0.5+0.5*sin(2*PI*4.5*t))':s=44100:d=${duration}`,
       `afade=t=in:ss=0:d=0.08`,
       `afade=t=out:st=${Math.max(0, duration - 0.15)}:d=0.15`,
-      `loudnorm=I=-16:TP=-1.5:LRA=11`,
+      `loudnorm=I=-14:TP=-1.0:LRA=9`,
     ].join(',');
 
     const args = [

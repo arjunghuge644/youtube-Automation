@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { TechnicalExplainerStoryboard, TechnicalExplainerScene } from '@creatorflow/shared';
-import { LocalSpeechSynthesizer } from '../providers/tts/local-synthesizer.js';
+import { TTSService } from '../providers/tts/tts-service.js';
 import { AssetValidator } from '../media/asset-validator.js';
 
 const execFileAsync = promisify(execFile);
@@ -13,11 +13,16 @@ export interface RenderExplainerOptions {
   filename?: string;
   compositionId?: 'TechnicalExplainer-9x16' | 'TechnicalExplainer-16x9';
   concurrency?: number;
+  ttsProvider?: string;
 }
 
 export class RemotionRendererService {
-  private tts = new LocalSpeechSynthesizer();
+  private tts: TTSService;
   private validator = new AssetValidator();
+
+  constructor(ttsService?: TTSService) {
+    this.tts = ttsService || new TTSService();
+  }
 
   /**
    * Automatically prepares audio narration, measures durations, aligns frame counts,
@@ -58,13 +63,16 @@ export class RemotionRendererService {
 
       if (scene.narration && scene.narration.trim()) {
         try {
-          const ttsResult = await this.tts.synthesizeSpeech({
-            taskId: `task_narration_${scene.id}`,
-            text: scene.narration,
-            language: 'en',
-            projectId: 'temp_explainer',
-            sceneId: scene.id,
-          });
+          const ttsResult = await this.tts.synthesize(
+            {
+              taskId: `task_narration_${scene.id}`,
+              text: scene.narration,
+              language: 'en',
+              projectId: 'temp_explainer',
+              sceneId: scene.id,
+            },
+            options.ttsProvider
+          );
 
           // Convert audio to base64 Data URL so Remotion embeds it seamlessly without static file 404s
           const audioBuffer = await fs.readFile(ttsResult.filePath);
