@@ -11,8 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@creatorflow/shared": "*",
     "@creatorflow/remotion-explainer": "*",
+    "@creatorflow/shared": "*",
+    "@google/genai": "2.32.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",

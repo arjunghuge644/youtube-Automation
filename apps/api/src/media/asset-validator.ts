@@ -113,5 +113,40 @@ export class AssetValidator {
       issues,
     };
   }
+
+  async validateAudioAsset(
+    filePath: string,
+    minDurationSeconds = 0.1
+  ): Promise<{ valid: boolean; codec: string; durationSeconds: number; issues: string[] }> {
+    const issues: string[] = [];
+    let probeData: any;
+    try {
+      probeData = await this.inspectMedia(filePath);
+    } catch (error) {
+      return {
+        valid: false,
+        codec: 'unknown',
+        durationSeconds: 0,
+        issues: [`Corrupted audio or unreadable file: ${(error as Error).message}`],
+      };
+    }
+
+    const audioStream = probeData.streams?.find((s: any) => s.codec_type === 'audio');
+    if (!audioStream) {
+      issues.push('No audio stream detected in file.');
+    }
+
+    const duration = parseFloat(audioStream?.duration || probeData.format?.duration || '0');
+    if (duration < minDurationSeconds) {
+      issues.push(`Audio duration too short (${duration.toFixed(2)}s < ${minDurationSeconds}s).`);
+    }
+
+    return {
+      valid: issues.length === 0,
+      codec: audioStream?.codec_name || 'unknown',
+      durationSeconds: Number(duration.toFixed(2)),
+      issues,
+    };
+  }
 }
 

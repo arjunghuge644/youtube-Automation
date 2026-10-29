@@ -1478,8 +1478,9 @@ Guidelines:
 - Safe areas: keep titles concise and text within 9:16 vertical boundaries.
 - Never generate arbitrary executable React code, JSX, or HTML. Only return valid JSON matching TechnicalExplainerStoryboard.`;
 
+    const textModel = process.env.GEMINI_TEXT_MODEL || 'gemini-3.8-flash';
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${textModel}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

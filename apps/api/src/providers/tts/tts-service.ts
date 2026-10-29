@@ -39,7 +39,10 @@ export class TTSService {
     if (elevenLabsApiKey) {
       const elevenLabs = new ElevenLabsProvider(elevenLabsApiKey);
       this.providers.set(elevenLabs.id, elevenLabs);
-      this.defaultProviderId = elevenLabs.id;
+      // Maintain zero-paid policy: ElevenLabs is never automatically made the default provider
+      if (preferredDefault === elevenLabs.id) {
+        this.defaultProviderId = elevenLabs.id;
+      }
     }
 
     if (preferredDefault && this.providers.has(preferredDefault)) {

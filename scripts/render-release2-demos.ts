@@ -117,6 +117,7 @@ async function main() {
       outputDir,
       filename: demo.filename,
       compositionId: 'TechnicalExplainer-9x16',
+      allowLocalFallback: true,
     });
     console.log(`   ✓ Render complete: ${renderResult.outputPath} (${renderResult.totalDurationSeconds}s, ${renderResult.totalFrames} frames)`);
 

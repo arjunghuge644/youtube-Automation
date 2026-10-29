@@ -28,9 +28,11 @@ async function main() {
     outputDir,
     filename,
     compositionId: 'TechnicalExplainer-9x16',
+    allowLocalFallback: true,
   });
   let totalDurationSeconds = result.totalDurationSeconds;
   console.log(`✓ MP4 rendered successfully: ${result.outputPath} (duration: ${totalDurationSeconds}s)`);
+  console.log(`  Audio Providers used:`, result.sceneAudioProviders);
 
   console.log('2. Running FFprobe validation and QA verification...');
   const probeData = await validator.inspectMedia(outputPath);

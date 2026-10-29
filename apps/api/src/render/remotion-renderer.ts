@@ -15,6 +15,7 @@ export interface RenderExplainerOptions {
   compositionId?: 'TechnicalExplainer-9x16' | 'TechnicalExplainer-16x9';
   concurrency?: number;
   ttsProvider?: string;
+  allowLocalFallback?: boolean;
 }
 
 export class RemotionRendererService {
@@ -39,6 +40,7 @@ export class RemotionRendererService {
     totalFrames: number;
     validated: boolean;
     metadata: Record<string, unknown>;
+    sceneAudioProviders: Record<number, string>;
   }> {
     const rootDir = process.cwd();
     const outputDir = options.outputDir || path.join(rootDir, 'exports');
@@ -55,6 +57,7 @@ export class RemotionRendererService {
     await fs.mkdir(tempDir, { recursive: true });
 
     const processedScenes: TechnicalExplainerScene[] = [];
+    const sceneAudioProviders: Record<number, string> = {};
     let totalFrames = 0;
     let totalSeconds = 0;
 
@@ -62,6 +65,7 @@ export class RemotionRendererService {
     for (const scene of storyboard.scenes) {
       let sceneAudioUrl: string | undefined = scene.narrationAudioUrl;
       let sceneDuration = scene.durationSeconds || 3;
+      let providerUsed = options.ttsProvider || this.tts.getProvider().id;
 
       if (scene.narration && scene.narration.trim()) {
         try {
@@ -76,6 +80,12 @@ export class RemotionRendererService {
             options.ttsProvider
           );
 
+          // Verify the synthesized audio file with AssetValidator
+          const validation = await this.validator.validateAudioAsset(ttsResult.filePath);
+          if (!validation.valid) {
+            throw new Error(`Synthesized audio failed validation: ${validation.issues.join(', ')}`);
+          }
+
           // Convert audio to base64 Data URL so Remotion embeds it seamlessly without static file 404s
           const audioBuffer = await fs.readFile(ttsResult.filePath);
           const mimeType = ttsResult.filePath.endsWith('.aac') ? 'audio/aac' : 'audio/wav';
@@ -84,11 +94,12 @@ export class RemotionRendererService {
           if (ttsResult.durationSeconds && ttsResult.durationSeconds > 0) {
             sceneDuration = Math.max(2.5, Number(ttsResult.durationSeconds.toFixed(2)));
           }
+          providerUsed = ttsResult.provider;
         } catch (ttsErr: any) {
-          console.warn(
-            `[RemotionRendererService] Primary TTS generation failed for scene ${scene.sceneNumber}: ${ttsErr.message}. Falling back to local synthesizer.`
-          );
-          try {
+          if (options.allowLocalFallback === true) {
+            console.warn(
+              `[RemotionRendererService] Primary TTS generation failed for scene ${scene.sceneNumber}: ${ttsErr.message}. Falling back to explicitly enabled local synthesizer.`
+            );
             const fallbackResult = await this.localFallback.synthesizeSpeech({
               taskId: `task_fallback_${scene.id}`,
               text: scene.narration,
@@ -96,20 +107,35 @@ export class RemotionRendererService {
               projectId: 'temp_explainer',
               sceneId: scene.id,
             });
+
+            const fallbackValidation = await this.validator.validateAudioAsset(fallbackResult.filePath);
+            if (!fallbackValidation.valid) {
+              throw new Error(`Fallback audio asset failed verification: ${fallbackValidation.issues.join(', ')}`);
+            }
+
             const audioBuffer = await fs.readFile(fallbackResult.filePath);
             const mimeType = fallbackResult.filePath.endsWith('.aac') ? 'audio/aac' : 'audio/wav';
             sceneAudioUrl = `data:${mimeType};base64,${audioBuffer.toString('base64')}`;
             if (fallbackResult.durationSeconds && fallbackResult.durationSeconds > 0) {
               sceneDuration = Math.max(2.5, Number(fallbackResult.durationSeconds.toFixed(2)));
             }
-          } catch (fallbackErr) {
+            providerUsed = 'local_tts';
+          } else {
             console.error(
-              `[RemotionRendererService] Fallback local synthesis also failed for scene ${scene.sceneNumber}:`,
-              fallbackErr
+              `[RemotionRendererService] Narration synthesis failed for scene ${scene.sceneNumber}: ${ttsErr.message}. Fallback is disabled.`
+            );
+            throw new Error(
+              `Narration synthesis failed for scene ${scene.sceneNumber}: ${ttsErr.message}. Narration is required; rendering aborted to prevent unverified production.`
             );
           }
         }
       }
+
+      if (scene.narration && scene.narration.trim() && !sceneAudioUrl) {
+        throw new Error(`Narration required for scene ${scene.sceneNumber} but no audio stream could be generated.`);
+      }
+
+      sceneAudioProviders[scene.sceneNumber] = providerUsed;
 
       const durationInFrames = Math.max(30, Math.ceil(sceneDuration * fps));
       totalFrames += durationInFrames;
@@ -194,6 +220,7 @@ export class RemotionRendererService {
       totalFrames,
       validated: true,
       metadata: inspectedMedia?.format || {},
+      sceneAudioProviders,
     };
   }
 

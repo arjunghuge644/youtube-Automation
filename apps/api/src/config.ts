@@ -12,6 +12,9 @@ const environmentSchema = z.object({
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(24),
   COOKIE_SECURE: booleanString.optional(),
   TRUST_PROXY: z.enum(['false', '1']).default('false'),
+  GEMINI_TEXT_MODEL: z.string().default('gemini-3.8-flash'),
+  GEMINI_TTS_MODEL: z.string().default('gemini-3.8-flash-tts'),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
@@ -31,6 +34,9 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
     sessionTtlHours: value.SESSION_TTL_HOURS,
     cookieSecure: value.COOKIE_SECURE ?? value.NODE_ENV === 'production',
     trustProxy: value.TRUST_PROXY === '1' ? 1 as const : false as const,
+    geminiTextModel: value.GEMINI_TEXT_MODEL,
+    geminiTtsModel: value.GEMINI_TTS_MODEL,
+    geminiApiKey: value.GEMINI_API_KEY,
   };
 }
 
