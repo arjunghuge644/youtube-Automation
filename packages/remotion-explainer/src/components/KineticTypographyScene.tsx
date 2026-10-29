@@ -7,25 +7,31 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
   props,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, durationInFrames } = useVideoConfig();
+
+  // Dynamic milestones scaled to narration duration
+  const headingStart = Math.max(3, Math.floor(durationInFrames * 0.05));
+  const badgesStart = Math.floor(durationInFrames * 0.12);
+  const cardStart = Math.floor(durationInFrames * 0.38);
+  const punchlineStart = Math.floor(durationInFrames * 0.60);
 
   // Heading spring
   const headingEntrance = spring({
-    frame: frame - 5,
+    frame: frame - headingStart,
     fps,
     config: theme.springs.snappy,
   });
 
   // Punchline spring
   const punchlineEntrance = spring({
-    frame: frame - 16,
+    frame: frame - punchlineStart,
     fps,
     config: theme.springs.bouncy,
   });
 
   // Card spring
   const cardEntrance = spring({
-    frame: frame - 25,
+    frame: frame - cardStart,
     fps,
     config: theme.springs.snappy,
   });
@@ -36,27 +42,45 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '0 48px',
+        padding: '0 40px',
         width: '100%',
         boxSizing: 'border-box',
-        gap: '32px',
+        gap: '28px',
         textAlign: 'center',
       }}
     >
+      {/* Heading */}
+      {props.heading && (
+        <div
+          style={{
+            fontFamily: theme.fonts.sans,
+            fontSize: '44px',
+            fontWeight: 800,
+            color: theme.colors.textPrimary,
+            lineHeight: 1.25,
+            opacity: headingEntrance,
+            transform: `translateY(${interpolate(headingEntrance, [0, 1], [15, 0])}px)`,
+          }}
+        >
+          {props.heading}
+        </div>
+      )}
+
       {/* Badges / Checklist Items */}
       {props.badges && props.badges.length > 0 && (
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '14px',
+            gap: '16px',
             alignItems: 'flex-start',
             width: '100%',
           }}
         >
           {props.badges.map((b, idx) => {
+            const badgeFrame = badgesStart + idx * 14;
             const badgeEntrance = spring({
-              frame: frame - (idx * 12 + 6),
+              frame: frame - badgeFrame,
               fps,
               config: theme.springs.snappy,
             });
@@ -70,27 +94,28 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '16px',
+                  gap: '18px',
                   fontFamily: theme.fonts.sans,
-                  fontSize: '34px',
+                  fontSize: '36px',
                   fontWeight: 800,
                   color: isSuccess ? theme.colors.textPrimary : theme.colors.accentCoral,
                   opacity: badgeEntrance,
-                  transform: `translateX(${interpolate(badgeEntrance, [0, 1], [-20, 0])}px)`,
+                  transform: `translateX(${interpolate(badgeEntrance, [0, 1], [-24, 0])}px)`,
                 }}
               >
                 <div
                   style={{
-                    width: '38px',
-                    height: '38px',
+                    width: '42px',
+                    height: '42px',
                     borderRadius: '50%',
-                    border: `2px solid ${iconColor}`,
+                    border: `2.5px solid ${iconColor}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '22px',
+                    fontSize: '24px',
                     color: iconColor,
-                    boxShadow: `0 0 12px ${iconColor}66`,
+                    boxShadow: `0 0 14px ${iconColor}66`,
+                    flexShrink: 0,
                   }}
                 >
                   {isSuccess ? '✓' : '✕'}
@@ -106,16 +131,16 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
       {props.card && (
         <div
           style={{
-            width: '80%',
+            width: '90%',
             backgroundColor: theme.colors.cardBg,
             border: `2px solid ${theme.colors.cardBorder}`,
             borderRadius: '24px',
-            padding: '36px 28px',
+            padding: '38px 32px',
             boxSizing: 'border-box',
             opacity: cardEntrance,
             transform: `scale(${interpolate(cardEntrance, [0, 1], [0.92, 1])})`,
             boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)',
-            marginTop: '16px',
+            marginTop: '8px',
           }}
         >
           <div
@@ -125,7 +150,7 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
               letterSpacing: '2px',
               color: theme.colors.textMuted,
               marginBottom: '10px',
-              fontWeight: 600,
+              fontWeight: 700,
               textTransform: 'uppercase',
             }}
           >
@@ -134,10 +159,10 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
           <div
             style={{
               fontFamily: theme.fonts.sans,
-              fontSize: '44px',
+              fontSize: '48px',
               fontWeight: 800,
               color: theme.colors.textPrimary,
-              marginBottom: '8px',
+              marginBottom: '10px',
               letterSpacing: '1px',
             }}
           >
@@ -146,8 +171,9 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
           <div
             style={{
               fontFamily: theme.fonts.mono,
-              fontSize: '18px',
-              color: theme.colors.textMuted,
+              fontSize: '20px',
+              color: theme.colors.accentYellow,
+              fontWeight: 600,
             }}
           >
             {props.card.subtitle}
@@ -155,35 +181,18 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
         </div>
       )}
 
-      {/* Heading */}
-      {props.heading && (
-        <div
-          style={{
-            fontFamily: theme.fonts.sans,
-            fontSize: '42px',
-            fontWeight: 800,
-            color: theme.colors.textPrimary,
-            lineHeight: 1.25,
-            opacity: headingEntrance,
-            transform: `translateY(${interpolate(headingEntrance, [0, 1], [15, 0])}px)`,
-          }}
-        >
-          {props.heading}
-        </div>
-      )}
-
       {/* Big Impact Punchline */}
       <div
         style={{
           fontFamily: theme.fonts.sans,
-          fontSize: '48px',
+          fontSize: '50px',
           fontWeight: 800,
           lineHeight: 1.25,
           color: theme.colors.textPrimary,
           opacity: punchlineEntrance,
-          transform: `scale(${interpolate(punchlineEntrance, [0, 1], [0.9, 1])})`,
-          textShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-          marginTop: '20px',
+          transform: `scale(${interpolate(punchlineEntrance, [0, 1], [0.92, 1])})`,
+          textShadow: '0 4px 24px rgba(0, 0, 0, 0.6)',
+          marginTop: '16px',
         }}
       >
         {props.highlightWord && props.punchline.includes(props.highlightWord) ? (
@@ -192,7 +201,7 @@ export const KineticTypographyScene: React.FC<{ props: KineticTypographyProps }>
             <span
               style={{
                 color: theme.colors.accentYellow,
-                textShadow: `0 0 16px ${theme.colors.accentYellowGlow}`,
+                textShadow: `0 0 20px ${theme.colors.accentYellowGlow}`,
               }}
             >
               {props.highlightWord}

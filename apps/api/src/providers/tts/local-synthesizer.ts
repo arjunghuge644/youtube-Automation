@@ -16,6 +16,10 @@ export class LocalSpeechSynthesizer implements AudioProvider {
    */
   normalizeTechnicalPronunciation(text: string): string {
     return text
+      .replace(/₹([0-9]+)/g, '$1 rupees')
+      .replace(/\bPostgreSQL\b/g, 'Postgres')
+      .replace(/\bElasticsearch\b/g, 'Elastic Search')
+      .replace(/\bGeohash\b/g, 'Geo-hash')
       .replace(/\bAuthN\b/g, 'Auth-N')
       .replace(/\bAuthZ\b/g, 'Auth-Z')
       .replace(/\bQPS\b/g, 'Q-P-S')
@@ -30,7 +34,9 @@ export class LocalSpeechSynthesizer implements AudioProvider {
       .replace(/\bACID\b/g, 'Acid')
       .replace(/\bUI\b/g, 'U-I')
       .replace(/\bUX\b/g, 'U-X')
-      .replace(/\bSaaS\b/g, 'Sass');
+      .replace(/\bSaaS\b/g, 'Sass')
+      .replace(/\b100k\b/gi, '100 thousand')
+      .replace(/\breq\/sec\b/gi, 'requests per second');
   }
 
   /**

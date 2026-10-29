@@ -7,27 +7,45 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
   props,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, durationInFrames } = useVideoConfig();
+
+  // Dynamic milestones scaled to narration duration
+  const rootEntranceFrame = Math.max(4, Math.floor(durationInFrames * 0.05));
+  const linesStartFrame = Math.floor(durationInFrames * 0.14);
+  const linesEndFrame = Math.floor(durationInFrames * 0.34);
+  const branchEntranceFrame = Math.floor(durationInFrames * 0.32);
+  const statusNotesStart = Math.floor(durationInFrames * 0.48);
+  const punchlineFrame = Math.floor(durationInFrames * 0.70);
 
   // Root node entrance
   const rootEntrance = spring({
-    frame: frame - 10,
+    frame: frame - rootEntranceFrame,
     fps,
     config: theme.springs.snappy,
   });
 
   // Circuit connectors draw progress
-  const linesProgress = interpolate(frame, [22, 38], [0, 100], {
+  const linesProgress = interpolate(frame, [linesStartFrame, linesEndFrame], [0, 100], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
   // Leaf branches entrance
   const branchEntrance = spring({
-    frame: frame - 35,
+    frame: frame - branchEntranceFrame,
     fps,
     config: theme.springs.gentle,
   });
+
+  // Punchline entrance
+  const punchlineEntrance = spring({
+    frame: frame - punchlineFrame,
+    fps,
+    config: theme.springs.snappy,
+  });
+
+  // Accent colors for branches
+  const branchAccents = [theme.colors.accentEmerald, theme.colors.accentCyan, theme.colors.accentYellow];
 
   return (
     <div
@@ -35,10 +53,10 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '0 40px',
+        padding: '0 36px',
         width: '100%',
         boxSizing: 'border-box',
-        gap: '28px',
+        gap: '24px',
       }}
     >
       {/* Top Status Notes */}
@@ -47,14 +65,15 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
+            gap: '14px',
             width: '100%',
-            paddingLeft: '16px',
+            paddingLeft: '12px',
           }}
         >
           {props.statusNotes.map((note, idx) => {
+            const noteFrame = statusNotesStart + idx * 16;
             const noteEntrance = spring({
-              frame: frame - (idx * 14 + 5),
+              frame: frame - noteFrame,
               fps,
               config: theme.springs.snappy,
             });
@@ -70,25 +89,26 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
                   alignItems: 'center',
                   gap: '16px',
                   fontFamily: theme.fonts.sans,
-                  fontSize: '34px',
+                  fontSize: '36px',
                   fontWeight: 800,
                   color: isCheck ? theme.colors.textPrimary : theme.colors.accentCoral,
                   opacity: noteEntrance,
-                  transform: `translateX(${interpolate(noteEntrance, [0, 1], [-20, 0])}px)`,
+                  transform: `translateX(${interpolate(noteEntrance, [0, 1], [-24, 0])}px)`,
                 }}
               >
                 <div
                   style={{
-                    width: '36px',
-                    height: '36px',
+                    width: '40px',
+                    height: '40px',
                     borderRadius: '50%',
-                    border: `2px solid ${iconColor}`,
+                    border: `2.5px solid ${iconColor}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '20px',
+                    fontSize: '22px',
                     color: iconColor,
-                    boxShadow: `0 0 12px ${iconColor}66`,
+                    boxShadow: `0 0 14px ${iconColor}66`,
+                    flexShrink: 0,
                   }}
                 >
                   {isCheck ? '✓' : '✕'}
@@ -104,17 +124,17 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
       <div
         style={{
           position: 'relative',
-          width: '320px',
+          width: '380px',
           backgroundColor: theme.colors.cardBg,
           border: `2px solid ${theme.colors.accentYellow}`,
-          borderRadius: '20px',
-          padding: '28px 24px 20px 24px',
+          borderRadius: '22px',
+          padding: '28px 24px 22px 24px',
           textAlign: 'center',
           boxSizing: 'border-box',
           opacity: rootEntrance,
-          transform: `scale(${interpolate(rootEntrance, [0, 1], [0.9, 1])})`,
-          boxShadow: `0 0 28px ${theme.colors.accentYellowGlow}`,
-          marginTop: '16px',
+          transform: `scale(${interpolate(rootEntrance, [0, 1], [0.92, 1])})`,
+          boxShadow: `0 0 32px ${theme.colors.accentYellowGlow}`,
+          marginTop: '12px',
           zIndex: 5,
         }}
       >
@@ -131,9 +151,9 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
             fontSize: '13px',
             fontWeight: 800,
             letterSpacing: '2px',
-            padding: '5px 16px',
+            padding: '6px 18px',
             borderRadius: '20px',
-            boxShadow: `0 0 12px ${theme.colors.accentYellowGlow}`,
+            boxShadow: `0 0 14px ${theme.colors.accentYellowGlow}`,
             whiteSpace: 'nowrap',
           }}
         >
@@ -147,7 +167,7 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
             letterSpacing: '2px',
             color: theme.colors.textMuted,
             marginBottom: '6px',
-            fontWeight: 600,
+            fontWeight: 700,
             textTransform: 'uppercase',
           }}
         >
@@ -156,7 +176,7 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
         <div
           style={{
             fontFamily: theme.fonts.sans,
-            fontSize: '34px',
+            fontSize: '38px',
             fontWeight: 800,
             color: theme.colors.textPrimary,
             letterSpacing: '1px',
@@ -169,7 +189,8 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
           style={{
             fontFamily: theme.fonts.mono,
             fontSize: '16px',
-            color: theme.colors.textMuted,
+            color: theme.colors.accentYellow,
+            fontWeight: 600,
           }}
         >
           {props.sourceOfTruth.details}
@@ -177,7 +198,7 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
       </div>
 
       {/* Circuit Branching Lines */}
-      <div style={{ width: '100%', height: '70px', position: 'relative' }}>
+      <div style={{ width: '100%', height: '64px', position: 'relative' }}>
         <svg
           width="100%"
           height="100%"
@@ -188,47 +209,47 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
             x1="50%"
             y1="0"
             x2="50%"
-            y2="35"
-            stroke={theme.colors.cardBorder}
-            strokeWidth="2"
+            y2="32"
+            stroke={theme.colors.accentYellow}
+            strokeWidth="2.5"
           />
 
           {/* Horizontal branching rail */}
           <line
             x1="18%"
-            y1="35"
+            y1="32"
             x2="82%"
-            y2="35"
+            y2="32"
             stroke={theme.colors.cardBorder}
-            strokeWidth="2"
-            strokeDasharray="200"
-            strokeDashoffset={`${200 - (linesProgress / 100) * 200}`}
+            strokeWidth="2.5"
+            strokeDasharray="260"
+            strokeDashoffset={`${260 - (linesProgress / 100) * 260}`}
           />
 
           {/* Drops to 3 leaf nodes */}
-          <line x1="18%" y1="35" x2="18%" y2="70" stroke={theme.colors.cardBorder} strokeWidth="2" />
-          <line x1="50%" y1="35" x2="50%" y2="70" stroke={theme.colors.cardBorder} strokeWidth="2" />
-          <line x1="82%" y1="35" x2="82%" y2="70" stroke={theme.colors.cardBorder} strokeWidth="2" />
+          <line x1="18%" y1="32" x2="18%" y2="64" stroke={theme.colors.cardBorder} strokeWidth="2.5" />
+          <line x1="50%" y1="32" x2="50%" y2="64" stroke={theme.colors.cardBorder} strokeWidth="2.5" />
+          <line x1="82%" y1="32" x2="82%" y2="64" stroke={theme.colors.cardBorder} strokeWidth="2.5" />
 
           {/* Animated pulsing data packets */}
-          {linesProgress > 50 && (
+          {linesProgress > 40 && (
             <>
               <circle
                 cx="18%"
-                cy={`${35 + ((frame * 2) % 35)}`}
-                r="3.5"
-                fill={theme.colors.accentYellow}
+                cy={`${32 + ((frame * 2.5) % 32)}`}
+                r="4"
+                fill={theme.colors.accentEmerald}
               />
               <circle
                 cx="50%"
-                cy={`${35 + ((frame * 2.2) % 35)}`}
-                r="3.5"
-                fill={theme.colors.accentYellow}
+                cy={`${32 + ((frame * 2.8) % 32)}`}
+                r="4"
+                fill={theme.colors.accentCyan}
               />
               <circle
                 cx="82%"
-                cy={`${35 + ((frame * 2.5) % 35)}`}
-                r="3.5"
+                cy={`${32 + ((frame * 3.1) % 32)}`}
+                r="4"
                 fill={theme.colors.accentYellow}
               />
             </>
@@ -247,60 +268,79 @@ export const SystemArchitectureScene: React.FC<{ props: SystemArchitectureProps 
           transform: `translateY(${interpolate(branchEntrance, [0, 1], [20, 0])}px)`,
         }}
       >
-        {props.branches.map((b, idx) => (
-          <div
-            key={idx}
-            style={{
-              backgroundColor: theme.colors.cardBg,
-              border: `1.5px solid ${theme.colors.cardBorder}`,
-              borderRadius: '16px',
-              padding: '18px 12px',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-            }}
-          >
+        {props.branches.map((b, idx) => {
+          const accent = branchAccents[idx % branchAccents.length];
+          return (
             <div
+              key={idx}
               style={{
-                fontFamily: theme.fonts.mono,
-                fontSize: '16px',
-                fontWeight: 800,
-                color: theme.colors.textPrimary,
-                marginBottom: '6px',
-                letterSpacing: '1px',
+                backgroundColor: theme.colors.cardBg,
+                border: `2px solid ${accent}`,
+                borderRadius: '18px',
+                padding: '20px 12px',
+                textAlign: 'center',
+                boxSizing: 'border-box',
+                boxShadow: `0 8px 24px ${accent}22`,
               }}
             >
-              {b.title}
+              <div
+                style={{
+                  fontFamily: theme.fonts.mono,
+                  fontSize: '18px',
+                  fontWeight: 800,
+                  color: theme.colors.textPrimary,
+                  marginBottom: '6px',
+                  letterSpacing: '1px',
+                }}
+              >
+                {b.title}
+              </div>
+              <div
+                style={{
+                  fontFamily: theme.fonts.mono,
+                  fontSize: '14px',
+                  color: accent,
+                  fontWeight: 600,
+                }}
+              >
+                {b.subtitle}
+              </div>
             </div>
-            <div
-              style={{
-                fontFamily: theme.fonts.mono,
-                fontSize: '13px',
-                color: theme.colors.textMuted,
-              }}
-            >
-              {b.subtitle}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Bottom Punchline Statement */}
+      {/* Bottom Punchline Banner */}
       {props.punchline && (
         <div
           style={{
-            marginTop: '28px',
+            marginTop: '20px',
             textAlign: 'center',
             fontFamily: theme.fonts.sans,
-            fontSize: '32px',
-            fontWeight: 700,
+            fontSize: '34px',
+            fontWeight: 800,
             lineHeight: 1.3,
-            color: theme.colors.textSecondary,
+            color: theme.colors.textPrimary,
+            backgroundColor: 'rgba(255, 209, 102, 0.08)',
+            border: `1.5px solid rgba(255, 209, 102, 0.3)`,
+            borderRadius: '18px',
+            padding: '18px 28px',
+            width: '100%',
+            boxSizing: 'border-box',
+            opacity: punchlineEntrance,
+            transform: `scale(${interpolate(punchlineEntrance, [0, 1], [0.94, 1])})`,
           }}
         >
           {props.punchline.highlightWord && props.punchline.text.includes(props.punchline.highlightWord) ? (
             <>
               <span>{props.punchline.text.substring(0, props.punchline.text.indexOf(props.punchline.highlightWord))}</span>
-              <span style={{ color: theme.colors.accentYellow, fontWeight: 800 }}>
+              <span
+                style={{
+                  color: theme.colors.accentYellow,
+                  fontWeight: 800,
+                  textShadow: `0 0 16px ${theme.colors.accentYellowGlow}`,
+                }}
+              >
                 {props.punchline.highlightWord}
               </span>
               <span>

@@ -5,39 +5,54 @@ import type { GeospatialMapProps } from '@creatorflow/shared';
 
 export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ props }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, durationInFrames } = useVideoConfig();
+
+  // Dynamic milestones scaled to narration duration
+  const streamStartFrame = Math.max(5, Math.floor(durationInFrames * 0.08));
+  const showGeoIndexFrame = Math.floor(durationInFrames * 0.50);
+  const counterEndFrame = Math.floor(durationInFrames * 0.46);
 
   // Pulse animation for customer radius
-  const pulseScale = 1 + (Math.sin(frame * 0.15) + 1) * 0.05;
+  const pulseScale = 1 + (Math.sin(frame * 0.15) + 1) * 0.06;
 
   // Stream data packets down to database
-  const streamActive = frame > 15;
+  const streamActive = frame > streamStartFrame;
 
   // Transition from DB overload to Geo Index card
-  const showGeoIndex = frame > 50;
+  const showGeoIndex = frame > showGeoIndexFrame;
   const geoIndexEntrance = spring({
-    frame: frame - 50,
+    frame: frame - showGeoIndexFrame,
     fps,
     config: theme.springs.snappy,
   });
 
   // Location writes counter animation
+  const maxWrites = parseInt(props.writeCount.replace(/,/g, ''), 10) || 2434;
   const counterValue = Math.min(
-    2434,
-    Math.floor(interpolate(frame, [10, 48], [120, 2434], { extrapolateRight: 'clamp' }))
+    maxWrites,
+    Math.floor(
+      interpolate(frame, [streamStartFrame, counterEndFrame], [120, maxWrites], {
+        extrapolateLeft: 'clamp',
+        extrapolateRight: 'clamp',
+      })
+    )
   );
 
-  // Simulated rider pins
+  // Simulated rider pins with radar tracking
   const riders = [
-    { x: 120, y: 110, angle: 45, speed: 1.2 },
-    { x: 220, y: 80, angle: -30, speed: 0.9 },
-    { x: 380, y: 95, angle: 110, speed: 1.4 },
-    { x: 480, y: 130, angle: -60, speed: 1.1 },
-    { x: 160, y: 220, angle: 15, speed: 0.8 },
-    { x: 440, y: 240, angle: -120, speed: 1.3 },
-    { x: 260, y: 310, angle: 80, speed: 1.0 },
-    { x: 360, y: 330, angle: -45, speed: 1.5 },
+    { id: 'R-01', x: 110, y: 120, angle: 45, speed: 1.2 },
+    { id: 'R-02', x: 230, y: 90, angle: -30, speed: 0.9 },
+    { id: 'R-03', x: 420, y: 105, angle: 110, speed: 1.4 },
+    { id: 'R-04', x: 510, y: 150, angle: -60, speed: 1.1 },
+    { id: 'R-05', x: 140, y: 250, angle: 15, speed: 0.8 },
+    { id: 'R-06', x: 460, y: 270, angle: -120, speed: 1.3 },
+    { id: 'R-07', x: 250, y: 370, angle: 80, speed: 1.0 },
+    { id: 'R-08', x: 380, y: 390, angle: -45, speed: 1.5 },
   ];
+
+  // Radar sweep angle
+  const radarAngle = (frame * 0.06) % (Math.PI * 2);
+  const sweepRadius = 160;
 
   return (
     <div
@@ -45,7 +60,7 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '0 44px',
+        padding: '0 40px',
         width: '100%',
         boxSizing: 'border-box',
         gap: '24px',
@@ -55,7 +70,7 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
       <div
         style={{
           width: '100%',
-          height: '460px',
+          height: '520px',
           backgroundColor: theme.colors.cardBg,
           border: `2px solid ${theme.colors.cardBorder}`,
           borderRadius: '24px',
@@ -64,31 +79,92 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
           boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)',
         }}
       >
-        {/* Map Vector Streets & River */}
+        {/* Map Header Status Bar */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 14,
+            left: 20,
+            right: 20,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            zIndex: 10,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: 'rgba(8, 15, 34, 0.85)',
+              padding: '6px 14px',
+              borderRadius: '12px',
+              border: `1px solid ${theme.colors.cardBorder}`,
+            }}
+          >
+            <div
+              style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: theme.colors.accentYellow,
+                boxShadow: `0 0 8px ${theme.colors.accentYellowGlow}`,
+              }}
+            />
+            <span
+              style={{
+                fontFamily: theme.fonts.mono,
+                fontSize: '13px',
+                fontWeight: 700,
+                color: theme.colors.textPrimary,
+                letterSpacing: '1px',
+              }}
+            >
+              LIVE RIDER MESH (3 KM RADIUS)
+            </span>
+          </div>
+
+          <div
+            style={{
+              backgroundColor: 'rgba(8, 15, 34, 0.85)',
+              padding: '6px 12px',
+              borderRadius: '10px',
+              border: `1px solid ${theme.colors.cardBorder}`,
+              fontFamily: theme.fonts.mono,
+              fontSize: '12px',
+              color: theme.colors.accentCyan,
+            }}
+          >
+            PING: 5s CADENCE
+          </div>
+        </div>
+
+        {/* Map Vector Streets & Radar */}
         <svg
           width="100%"
           height="100%"
           style={{ position: 'absolute', top: 0, left: 0 }}
         >
           {/* Subtle street grid */}
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 9 }).map((_, i) => (
             <line
               key={`h-${i}`}
               x1="0"
               y1={i * 60 + 20}
-              x2="600"
+              x2="640"
               y2={i * 60 + 20}
               stroke="rgba(80, 120, 180, 0.12)"
               strokeWidth="1.5"
             />
           ))}
-          {Array.from({ length: 9 }).map((_, i) => (
+          {Array.from({ length: 10 }).map((_, i) => (
             <line
               key={`v-${i}`}
               x1={i * 70 + 20}
               y1="0"
               x2={i * 70 + 20}
-              y2="460"
+              y2="520"
               stroke="rgba(80, 120, 180, 0.12)"
               strokeWidth="1.5"
             />
@@ -96,14 +172,14 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
 
           {/* Curved highway / river path */}
           <path
-            d="M -20,380 Q 200,280 400,140 T 650,40"
+            d="M -20,440 Q 200,320 400,160 T 670,40"
             fill="none"
             stroke="rgba(56, 189, 248, 0.28)"
             strokeWidth="32"
             strokeLinecap="round"
           />
           <path
-            d="M -20,380 Q 200,280 400,140 T 650,40"
+            d="M -20,440 Q 200,320 400,160 T 670,40"
             fill="none"
             stroke="rgba(56, 189, 248, 0.12)"
             strokeWidth="56"
@@ -111,68 +187,81 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
 
           {/* Secondary streets */}
           <path
-            d="M 50,40 L 520,420"
+            d="M 50,40 L 580,480"
             fill="none"
             stroke="rgba(124, 147, 193, 0.2)"
             strokeWidth="8"
           />
           <path
-            d="M 580,180 L 10,260"
+            d="M 600,200 L 10,310"
             fill="none"
             stroke="rgba(124, 147, 193, 0.2)"
             strokeWidth="6"
           />
 
+          {/* Radar Sweep Line */}
+          <line
+            x1="320"
+            y1="250"
+            x2={320 + Math.cos(radarAngle) * sweepRadius}
+            y2={250 + Math.sin(radarAngle) * sweepRadius}
+            stroke="rgba(255, 209, 102, 0.35)"
+            strokeWidth="2"
+            strokeDasharray="4,4"
+          />
+
           {/* Dotted Radius Circle around Customer */}
           <circle
-            cx="300"
-            cy="210"
-            r={70 * pulseScale}
-            fill="rgba(255, 209, 102, 0.04)"
-            stroke={theme.colors.textPrimary}
-            strokeWidth="2"
+            cx="320"
+            cy="250"
+            r={85 * pulseScale}
+            fill="rgba(255, 209, 102, 0.05)"
+            stroke={theme.colors.accentYellow}
+            strokeWidth="2.5"
             strokeDasharray="6,6"
           />
 
-          {/* Radius Distance Line */}
-          <line
-            x1="300"
-            y1="210"
-            x2="300"
-            y2={210 + 70 * pulseScale}
-            stroke={theme.colors.textPrimary}
-            strokeWidth="2"
+          {/* Outer Range Ring */}
+          <circle
+            cx="320"
+            cy="250"
+            r={140}
+            fill="none"
+            stroke="rgba(255, 209, 102, 0.15)"
+            strokeWidth="1.5"
+            strokeDasharray="8,8"
           />
 
           {/* Customer Location Pin */}
-          <g transform="translate(288, 180)">
+          <g transform="translate(308, 222)">
             <path
               d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12zm0 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"
               fill={theme.colors.accentYellow}
-              filter="drop-shadow(0 0 8px rgba(255, 209, 102, 0.8))"
+              filter="drop-shadow(0 0 12px rgba(255, 209, 102, 0.9))"
             />
           </g>
 
           {/* 3 km label */}
           <rect
-            x="310"
-            y="250"
-            width="64"
-            height="26"
-            rx="6"
-            fill="rgba(13, 27, 58, 0.85)"
-            stroke={theme.colors.cardBorder}
+            x="332"
+            y="290"
+            width="80"
+            height="30"
+            rx="8"
+            fill="rgba(13, 27, 58, 0.9)"
+            stroke={theme.colors.accentYellow}
+            strokeWidth="1.5"
           />
           <text
-            x="342"
-            y="268"
-            fill={theme.colors.textPrimary}
-            fontSize="14"
+            x="372"
+            y="311"
+            fill={theme.colors.accentYellow}
+            fontSize="15"
             fontFamily={theme.fonts.mono}
-            fontWeight="700"
+            fontWeight="800"
             textAnchor="middle"
           >
-            {props.customer.radiusKm} km
+            {props.customer.radiusKm} KM
           </text>
 
           {/* Animated Rider Pins */}
@@ -184,23 +273,33 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
               <g key={i}>
                 {/* Rider motion trail */}
                 <line
-                  x1={currentRiderX - Math.cos(r.angle) * 14}
-                  y1={currentRiderY - Math.sin(r.angle) * 14}
+                  x1={currentRiderX - Math.cos(r.angle) * 16}
+                  y1={currentRiderY - Math.sin(r.angle) * 16}
                   x2={currentRiderX}
                   y2={currentRiderY}
-                  stroke="rgba(255, 255, 255, 0.35)"
+                  stroke="rgba(255, 255, 255, 0.4)"
                   strokeWidth="2"
+                />
+                {/* Rider pulse ripple */}
+                <circle
+                  cx={currentRiderX}
+                  cy={currentRiderY}
+                  r={8 + (Math.sin(frame * 0.2 + i) + 1) * 3}
+                  fill="none"
+                  stroke={theme.colors.accentCyan}
+                  strokeWidth="1"
+                  opacity={0.6}
                 />
                 {/* Rider circle with inner dot */}
                 <circle
                   cx={currentRiderX}
                   cy={currentRiderY}
-                  r="7"
-                  fill="none"
+                  r="8"
+                  fill="rgba(13, 27, 58, 0.8)"
                   stroke={theme.colors.textPrimary}
                   strokeWidth="2"
                 />
-                <circle cx={currentRiderX} cy={currentRiderY} r="3" fill={theme.colors.textPrimary} />
+                <circle cx={currentRiderX} cy={currentRiderY} r="3.5" fill={theme.colors.accentCyan} />
               </g>
             );
           })}
@@ -225,14 +324,14 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
               backgroundColor: theme.colors.cardBg,
               border: `2px solid ${theme.colors.cardBorder}`,
               borderRadius: '20px',
-              padding: '20px 24px',
+              padding: '24px 24px',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <svg width="28" height="34" viewBox="0 0 40 48" fill="none">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <svg width="32" height="38" viewBox="0 0 40 48" fill="none">
                 <ellipse cx="20" cy="12" rx="18" ry="8" stroke={theme.colors.accentYellow} strokeWidth="2.5" />
                 <path
                   d="M2 12 V 36 C 2 40.4 10.05 44 20 44 C 29.95 44 38 40.4 38 36 V 12"
@@ -243,9 +342,10 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
               <div
                 style={{
                   fontFamily: theme.fonts.mono,
-                  fontSize: '20px',
+                  fontSize: '22px',
                   fontWeight: 800,
                   color: theme.colors.accentYellow,
+                  letterSpacing: '1px',
                 }}
               >
                 POSTGRES
@@ -254,11 +354,12 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
             <div
               style={{
                 fontFamily: theme.fonts.mono,
-                fontSize: '14px',
+                fontSize: '15px',
+                fontWeight: 700,
                 color: theme.colors.textMuted,
               }}
             >
-              ₹ WALLET
+              ₹ WALLET & ORDERS
             </div>
           </div>
 
@@ -267,10 +368,10 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
             <div
               style={{
                 fontFamily: theme.fonts.mono,
-                fontSize: '13px',
+                fontSize: '14px',
                 letterSpacing: '2px',
                 color: theme.colors.textMuted,
-                fontWeight: 600,
+                fontWeight: 700,
               }}
             >
               {props.dataStreamLabel}
@@ -278,10 +379,11 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
             <div
               style={{
                 fontFamily: theme.fonts.sans,
-                fontSize: '44px',
+                fontSize: '48px',
                 fontWeight: 800,
                 color: theme.colors.textPrimary,
                 letterSpacing: '-1px',
+                lineHeight: 1,
               }}
             >
               {counterValue.toLocaleString()}
@@ -292,9 +394,9 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
               <div
                 style={{
                   width: '100%',
-                  height: '10px',
+                  height: '12px',
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  borderRadius: '5px',
+                  borderRadius: '6px',
                   overflow: 'hidden',
                 }}
               >
@@ -303,9 +405,20 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
                     width: `${props.loadPercentage}%`,
                     height: '100%',
                     backgroundColor: theme.colors.accentYellow,
-                    boxShadow: `0 0 10px ${theme.colors.accentYellowGlow}`,
+                    boxShadow: `0 0 12px ${theme.colors.accentYellowGlow}`,
                   }}
                 />
+              </div>
+              <div
+                style={{
+                  marginTop: '6px',
+                  fontFamily: theme.fonts.mono,
+                  fontSize: '12px',
+                  color: theme.colors.accentCoral,
+                  fontWeight: 700,
+                }}
+              >
+                LOAD: {props.loadPercentage}% CAPACITY
               </div>
             </div>
           </div>
@@ -318,37 +431,69 @@ export const GeospatialMapScene: React.FC<{ props: GeospatialMapProps }> = ({ pr
             backgroundColor: theme.colors.cardBg,
             border: `2px solid ${theme.colors.accentYellow}`,
             borderRadius: '24px',
-            padding: '30px 36px',
+            padding: '32px 36px',
             boxSizing: 'border-box',
             opacity: geoIndexEntrance,
             transform: `scale(${interpolate(geoIndexEntrance, [0, 1], [0.94, 1])})`,
-            boxShadow: `0 0 28px ${theme.colors.accentYellowGlow}`,
+            boxShadow: `0 0 32px ${theme.colors.accentYellowGlow}`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
           }}
         >
-          <div
-            style={{
-              fontFamily: theme.fonts.mono,
-              fontSize: '24px',
-              fontWeight: 800,
-              letterSpacing: '2px',
-              color: theme.colors.accentYellow,
-              marginBottom: '10px',
-            }}
-          >
-            {props.indexCard.title}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div
+              style={{
+                fontFamily: theme.fonts.mono,
+                fontSize: '26px',
+                fontWeight: 800,
+                letterSpacing: '2px',
+                color: theme.colors.accentYellow,
+              }}
+            >
+              {props.indexCard.title}
+            </div>
+            <div
+              style={{
+                backgroundColor: theme.colors.accentYellow,
+                color: '#000000',
+                fontFamily: theme.fonts.mono,
+                fontSize: '12px',
+                fontWeight: 800,
+                padding: '4px 10px',
+                borderRadius: '8px',
+              }}
+            >
+              O(1) LOOKUP
+            </div>
           </div>
+
           <div
             style={{
               fontFamily: theme.fonts.mono,
-              fontSize: '18px',
-              color: theme.colors.textMuted,
+              fontSize: '19px',
+              color: theme.colors.textPrimary,
               letterSpacing: '1px',
+              fontWeight: 600,
             }}
           >
             {props.indexCard.subtitle}
+          </div>
+
+          <div
+            style={{
+              fontFamily: theme.fonts.sans,
+              fontSize: '15px',
+              color: theme.colors.accentEmerald,
+              fontWeight: 700,
+              marginTop: '4px',
+            }}
+          >
+            ✓ In-Memory Spatial Indexing eliminates DB write bottlenecks
           </div>
         </div>
       )}
     </div>
   );
 };
+

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Audio, Series, staticFile } from 'remotion';
+import { Audio, Series, staticFile, interpolate, useCurrentFrame } from 'remotion';
 import { BlueprintBackground } from './components/BlueprintBackground';
 import { HeaderBar } from './components/HeaderBar';
 import { InterviewQuestionScene } from './components/InterviewQuestionScene';
@@ -26,6 +26,13 @@ export const SceneDispatcher: React.FC<{
   width?: number;
   height?: number;
 }> = ({ scene, width = 720, height = 1280 }) => {
+  const frame = useCurrentFrame();
+
+  // Smooth entrance transition for the scene content
+  const sceneEntrance = interpolate(frame, [0, 4], [0.7, 1], {
+    extrapolateRight: 'clamp',
+  });
+
   const renderSceneContent = () => {
     switch (scene.componentType) {
       case 'interview_question':
@@ -72,6 +79,9 @@ export const SceneDispatcher: React.FC<{
         width: `${width}px`,
         height: `${height}px`,
         overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
       }}
     >
       {/* Background blueprint coordinate grid */}
@@ -80,7 +90,7 @@ export const SceneDispatcher: React.FC<{
       {/* Top Header Bar */}
       <HeaderBar header={scene.header} categoryTag={scene.componentType.replace('_', ' ').toUpperCase()} />
 
-      {/* Main Specialized Component */}
+      {/* Main Specialized Component - centered vertically in the optimal 9:16 safe area */}
       <div
         style={{
           width: '100%',
@@ -88,9 +98,12 @@ export const SceneDispatcher: React.FC<{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'flex-start',
+          justifyContent: 'center',
           boxSizing: 'border-box',
-          paddingTop: '20px',
+          padding: '0 24px',
+          marginBottom: '110px',
+          zIndex: 5,
+          opacity: sceneEntrance,
         }}
       >
         {renderSceneContent()}

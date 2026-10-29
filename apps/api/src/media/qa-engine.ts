@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { promises as fs } from 'node:fs';
+import { VisualFrameInspector } from './visual-frame-inspector.js';
 import type {
   Project,
   ProjectScript,
@@ -303,6 +304,29 @@ export class QAEngine {
               ? `Duration ${actualDuration.toFixed(1)}s matches planned timeline within ±2.5s tolerance.`
               : `Duration drift of ${drift.toFixed(1)}s exceeds allowable tolerance (actual: ${actualDuration.toFixed(1)}s, expected: ${expectedDuration}s).`,
           });
+
+          // 7. Automated Visual Frame, Safe-Area & Vertical Canvas Fill Inspection
+          if (project.visualStyle === 'technical_explainer') {
+            try {
+              const visualInspector = new VisualFrameInspector();
+              const visualReport = await visualInspector.inspectVideo(finalExportPath, {
+                durationSeconds: actualDuration,
+                sampleIntervalSeconds: 3.5,
+              });
+              if (visualReport.warnings.length > 0) {
+                warnings.push(...visualReport.warnings);
+              }
+              checks.push({
+                name: 'Automated Visual Frame & Safe-Area Inspection',
+                passed: visualReport.overallPassed,
+                details: visualReport.overallPassed
+                  ? `Inspected ${visualReport.totalFramesInspected} frames. Avg vertical canvas fill: ${(visualReport.averageVerticalFillRatio * 100).toFixed(1)}%. Safe-area pass rate: ${(visualReport.safeAreaPassRate * 100).toFixed(0)}%. Subtitle coverage: ${(visualReport.subtitleCoverageRate * 100).toFixed(0)}%.`
+                  : `Visual frame QA issues: ${visualReport.issues.join('; ')}`,
+              });
+            } catch (visualErr: any) {
+              warnings.push(`Automated visual frame inspection error: ${visualErr.message}`);
+            }
+          }
         }
       } catch (err) {
         checks.push({

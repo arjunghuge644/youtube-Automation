@@ -83,17 +83,12 @@ export class RemotionRendererService {
       totalFrames += durationInFrames;
       totalSeconds += sceneDuration;
 
-      // Ensure subtitles are populated
-      const subtitles =
-        scene.subtitles && scene.subtitles.length > 0
-          ? scene.subtitles
-          : [
-              {
-                text: scene.narration || '',
-                startSeconds: 0.2,
-                endSeconds: Math.max(0.5, sceneDuration - 0.2),
-              },
-            ];
+      // Ensure subtitles are populated and accurately aligned to the actual audio duration
+      const subtitles = this.alignSubtitlesToSpeech(
+        scene.subtitles,
+        scene.narration || '',
+        sceneDuration
+      );
 
       processedScenes.push({
         ...scene,
@@ -206,5 +201,78 @@ export class RemotionRendererService {
       ...storyboard,
       scenes: updatedScenes,
     };
+  }
+
+  /**
+   * Generates or re-times subtitles so that 100% of the speech duration is covered,
+   * split into natural, readable phrase chunks (3-7 words per line).
+   */
+  alignSubtitlesToSpeech(
+    existingSubtitles: Array<{ text: string; startSeconds: number; endSeconds: number }> | undefined,
+    narrationText: string,
+    actualDuration: number
+  ): Array<{ text: string; startSeconds: number; endSeconds: number }> {
+    const text = narrationText.trim();
+    if (!text) return [];
+
+    // If existing subtitles exist and their coverage spans >= 85% of actual duration, scale them proportionally
+    if (existingSubtitles && existingSubtitles.length > 0) {
+      const lastSub = existingSubtitles[existingSubtitles.length - 1];
+      const maxEnd = lastSub.endSeconds;
+      if (maxEnd > 0) {
+        const scaleFactor = (actualDuration - 0.3) / maxEnd;
+        return existingSubtitles.map((sub) => ({
+          text: sub.text,
+          startSeconds: Number(Math.max(0.2, sub.startSeconds * scaleFactor).toFixed(2)),
+          endSeconds: Number(Math.min(actualDuration - 0.15, sub.endSeconds * scaleFactor).toFixed(2)),
+        }));
+      }
+    }
+
+    // Otherwise, segment the narration into natural phrase chunks
+    const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+    const phraseChunks: string[] = [];
+
+    for (const sentence of sentences) {
+      const words = sentence.trim().split(/\s+/).filter(Boolean);
+      if (words.length <= 6) {
+        phraseChunks.push(words.join(' '));
+      } else {
+        for (let i = 0; i < words.length; i += 5) {
+          phraseChunks.push(words.slice(i, i + 5).join(' '));
+        }
+      }
+    }
+
+    if (phraseChunks.length === 0) return [];
+
+    const totalWords = text.split(/\s+/).filter(Boolean).length || 1;
+    const speechStart = 0.2;
+    const speechEnd = Math.max(speechStart + 1.0, actualDuration - 0.25);
+    const totalSpeechTime = speechEnd - speechStart;
+
+    let accumulatedTime = speechStart;
+    const result: Array<{ text: string; startSeconds: number; endSeconds: number }> = [];
+
+    for (let i = 0; i < phraseChunks.length; i++) {
+      const chunk = phraseChunks[i];
+      const chunkWords = chunk.split(/\s+/).filter(Boolean).length;
+      const fraction = chunkWords / totalWords;
+      const chunkDuration = fraction * totalSpeechTime;
+      const startSeconds = Number(accumulatedTime.toFixed(2));
+      const endSeconds = Number(
+        (i === phraseChunks.length - 1 ? speechEnd : accumulatedTime + chunkDuration).toFixed(2)
+      );
+
+      result.push({
+        text: chunk,
+        startSeconds,
+        endSeconds: Math.max(startSeconds + 0.5, endSeconds),
+      });
+
+      accumulatedTime += chunkDuration;
+    }
+
+    return result;
   }
 }

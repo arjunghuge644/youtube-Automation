@@ -5,20 +5,22 @@ import type { CacheLayerProps } from '@creatorflow/shared';
 
 export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, durationInFrames } = useVideoConfig();
 
-  // Load bar calculation: starts high, eases down if cache is active
-  const isCacheActive = frame > 35;
+  // Load bar calculation: dynamically timed with scene duration
+  const cacheActivateFrame = Math.round(durationInFrames * 0.42);
+  const isCacheActive = frame >= cacheActivateFrame;
+
   const loadBarProgress = interpolate(
     frame,
-    [10, 30, 45, 65],
-    [30, props.database.loadPercentage, props.database.loadPercentage, isCacheActive ? 28 : props.database.loadPercentage],
+    [0, cacheActivateFrame - 10, cacheActivateFrame, cacheActivateFrame + 25],
+    [30, props.database.loadPercentage, props.database.loadPercentage, isCacheActive ? 22 : props.database.loadPercentage],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
 
   // Cache card entrance
   const cacheEntrance = spring({
-    frame: frame - 20,
+    frame: frame - Math.round(durationInFrames * 0.15),
     fps,
     config: theme.springs.snappy,
   });
@@ -39,10 +41,11 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '0 44px',
+        padding: '0 24px',
         width: '100%',
+        maxWidth: '640px',
         boxSizing: 'border-box',
-        gap: '24px',
+        gap: '20px',
         position: 'relative',
       }}
     >
@@ -56,12 +59,25 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
           width: '100%',
         }}
       >
+        <div
+          style={{
+            fontFamily: theme.fonts.mono,
+            fontSize: '15px',
+            letterSpacing: '2.5px',
+            color: theme.colors.textMuted,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+          }}
+        >
+          PEAK DINNER RUSH · CONCURRENT CLIENTS
+        </div>
+
         {[0, 1].map((row) => (
           <div
             key={row}
             style={{
               display: 'flex',
-              gap: '14px',
+              gap: '16px',
               justifyContent: 'center',
               width: '100%',
             }}
@@ -75,17 +91,17 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
                 <div
                   key={col}
                   style={{
-                    width: '32px',
-                    height: '52px',
-                    borderRadius: '7px',
-                    border: `1.5px solid ${isActive ? 'rgba(255, 209, 102, 0.7)' : theme.colors.cardBorder}`,
+                    width: '36px',
+                    height: '56px',
+                    borderRadius: '8px',
+                    border: `2px solid ${isActive ? theme.colors.accentYellow : theme.colors.cardBorder}`,
                     backgroundColor: theme.colors.cardBgSolid,
-                    padding: '4px',
+                    padding: '5px',
                     boxSizing: 'border-box',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    boxShadow: isActive && pulse ? `0 0 8px ${theme.colors.accentYellowGlow}` : 'none',
+                    boxShadow: isActive && pulse ? `0 0 10px ${theme.colors.accentYellowGlow}` : 'none',
                   }}
                 >
                   {/* Top indicator notch */}
@@ -93,15 +109,15 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
                     style={{
                       width: '100%',
                       height: '6px',
-                      borderRadius: '2px',
+                      borderRadius: '3px',
                       backgroundColor: isActive ? theme.colors.accentYellow : theme.colors.textSubtle,
                     }}
                   />
                   {/* Screen lines */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    <div style={{ width: '80%', height: '2px', backgroundColor: theme.colors.textSubtle }} />
-                    <div style={{ width: '60%', height: '2px', backgroundColor: theme.colors.textSubtle }} />
-                    <div style={{ width: '90%', height: '2px', backgroundColor: theme.colors.textSubtle }} />
+                    <div style={{ width: '80%', height: '3px', backgroundColor: theme.colors.textSubtle }} />
+                    <div style={{ width: '60%', height: '3px', backgroundColor: theme.colors.textSubtle }} />
+                    <div style={{ width: '90%', height: '3px', backgroundColor: theme.colors.textSubtle }} />
                   </div>
                 </div>
               );
@@ -114,13 +130,13 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
       <div
         style={{
           width: '100%',
-          height: '60px',
+          height: '46px',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
         {particleSeeds.map((pt, i) => {
-          const y = ((frame * pt.speed + pt.yOffset * 10) % 70) - 10;
+          const y = ((frame * pt.speed + pt.yOffset * 10) % 60) - 10;
           return (
             <div
               key={i}
@@ -128,12 +144,12 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
                 position: 'absolute',
                 left: `${pt.x}px`,
                 top: `${y}px`,
-                width: '6px',
-                height: '6px',
+                width: '7px',
+                height: '7px',
                 borderRadius: '50%',
-                backgroundColor: theme.colors.textPrimary,
-                boxShadow: '0 0 8px #ffffff',
-                opacity: y > 0 && y < 55 ? 0.9 : 0,
+                backgroundColor: theme.colors.accentYellow,
+                boxShadow: `0 0 10px ${theme.colors.accentYellowGlow}`,
+                opacity: y > 0 && y < 50 ? 0.95 : 0,
               }}
             />
           );
@@ -144,27 +160,49 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
       <div
         style={{
           width: '100%',
-          backgroundColor: theme.colors.cardBg,
-          border: `2px solid ${isCacheActive ? theme.colors.accentCyan : theme.colors.cardBorder}`,
+          backgroundColor: theme.colors.cardBgSolid,
+          border: `2px solid ${isCacheActive ? theme.colors.accentEmerald : theme.colors.cardBorder}`,
           borderRadius: '20px',
           padding: '24px 30px',
           boxSizing: 'border-box',
           opacity: cacheEntrance,
           transform: `scale(${interpolate(cacheEntrance, [0, 1], [0.95, 1])})`,
-          boxShadow: isCacheActive ? '0 0 24px rgba(56, 189, 248, 0.25)' : 'none',
+          boxShadow: isCacheActive ? '0 0 30px rgba(16, 185, 129, 0.3)' : '0 12px 30px rgba(0, 0, 0, 0.4)',
         }}
       >
         <div
           style={{
-            fontFamily: theme.fonts.mono,
-            fontSize: '22px',
-            fontWeight: 800,
-            letterSpacing: '2px',
-            color: theme.colors.accentYellow,
-            marginBottom: '18px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
           }}
         >
-          {props.cache.name}
+          <div
+            style={{
+              fontFamily: theme.fonts.mono,
+              fontSize: '24px',
+              fontWeight: 900,
+              letterSpacing: '2px',
+              color: theme.colors.accentYellow,
+            }}
+          >
+            {props.cache.name}
+          </div>
+          <div
+            style={{
+              padding: '4px 12px',
+              borderRadius: '6px',
+              backgroundColor: 'rgba(56, 189, 248, 0.15)',
+              border: `1px solid ${theme.colors.accentCyan}`,
+              fontFamily: theme.fonts.mono,
+              fontSize: '13px',
+              fontWeight: 800,
+              color: theme.colors.accentCyan,
+            }}
+          >
+            IN-MEMORY RAM
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
@@ -172,18 +210,19 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
           <div
             style={{
               flex: 1,
-              border: `1.5px dashed ${theme.colors.cardBorder}`,
-              borderRadius: '12px',
+              border: `2px solid ${isCacheActive ? theme.colors.accentEmerald : theme.colors.cardBorder}`,
+              borderRadius: '14px',
               padding: '16px',
               textAlign: 'center',
               fontFamily: theme.fonts.mono,
-              fontSize: '20px',
-              fontWeight: 800,
+              fontSize: '22px',
+              fontWeight: 900,
               letterSpacing: '2px',
+              backgroundColor: isCacheActive ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
               color: isCacheActive ? theme.colors.accentEmerald : theme.colors.textMuted,
             }}
           >
-            {isCacheActive ? 'HIT' : props.cache.status}
+            {isCacheActive ? 'HIT · 80% READS' : 'MISS · PASS-THROUGH'}
           </div>
 
           {/* TTL Digital Counter */}
@@ -191,12 +230,12 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
             style={{
               flex: 1,
               border: `1.5px solid ${theme.colors.cardBorder}`,
-              borderRadius: '12px',
+              borderRadius: '14px',
               padding: '16px',
               textAlign: 'center',
               fontFamily: theme.fonts.mono,
-              fontSize: '20px',
-              fontWeight: 800,
+              fontSize: '22px',
+              fontWeight: 900,
               color: theme.colors.textPrimary,
               letterSpacing: '2px',
             }}
@@ -207,34 +246,16 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
         </div>
       </div>
 
-      {/* Invalidation Pill Badge */}
-      <div
-        style={{
-          border: `1.5px solid ${theme.colors.accentYellow}`,
-          borderRadius: '8px',
-          padding: '6px 16px',
-          fontFamily: theme.fonts.mono,
-          fontSize: '15px',
-          fontWeight: 800,
-          letterSpacing: '2px',
-          color: theme.colors.accentYellow,
-          backgroundColor: theme.colors.cardBgSolid,
-          boxShadow: `0 0 10px ${theme.colors.accentYellowGlow}`,
-        }}
-      >
-        {props.transferBadge}
-      </div>
-
       {/* Database Container (Postgres) */}
       <div
         style={{
           width: '100%',
-          backgroundColor: theme.colors.cardBg,
-          border: `2px solid ${loadBarProgress > 60 ? theme.colors.accentYellow : theme.colors.cardBorder}`,
+          backgroundColor: theme.colors.cardBgSolid,
+          border: `2px solid ${loadBarProgress > 60 ? theme.colors.accentCoral : theme.colors.cardBorder}`,
           borderRadius: '24px',
           padding: '28px 32px',
           boxSizing: 'border-box',
-          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)',
+          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.5)',
         }}
       >
         {/* DB Title */}
@@ -242,33 +263,50 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '14px',
-            marginBottom: '20px',
+            justifyContent: 'space-between',
+            marginBottom: '18px',
           }}
         >
-          <svg width="32" height="38" viewBox="0 0 40 48" fill="none">
-            <ellipse cx="20" cy="12" rx="18" ry="8" stroke={theme.colors.accentYellow} strokeWidth="2.5" />
-            <path
-              d="M2 12 V 36 C 2 40.4 10.05 44 20 44 C 29.95 44 38 40.4 38 36 V 12"
-              stroke={theme.colors.accentYellow}
-              strokeWidth="2.5"
-            />
-          </svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <svg width="32" height="38" viewBox="0 0 40 48" fill="none">
+              <ellipse cx="20" cy="12" rx="18" ry="8" stroke={theme.colors.accentYellow} strokeWidth="2.5" />
+              <path
+                d="M2 12 V 36 C 2 40.4 10.05 44 20 44 C 29.95 44 38 40.4 38 36 V 12"
+                stroke={theme.colors.accentYellow}
+                strokeWidth="2.5"
+              />
+            </svg>
+            <div
+              style={{
+                fontFamily: theme.fonts.mono,
+                fontSize: '24px',
+                fontWeight: 900,
+                letterSpacing: '2px',
+                color: theme.colors.accentYellow,
+              }}
+            >
+              {props.database.name.toUpperCase()}
+            </div>
+          </div>
+
           <div
             style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              backgroundColor: loadBarProgress > 60 ? 'rgba(255, 92, 92, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              border: `1px solid ${loadBarProgress > 60 ? theme.colors.accentCoral : theme.colors.accentEmerald}`,
               fontFamily: theme.fonts.mono,
-              fontSize: '22px',
+              fontSize: '13px',
               fontWeight: 800,
-              letterSpacing: '2px',
-              color: theme.colors.accentYellow,
+              color: loadBarProgress > 60 ? theme.colors.accentCoral : theme.colors.accentEmerald,
             }}
           >
-            {props.database.name.toUpperCase()}
+            {loadBarProgress > 60 ? 'HIGH LOAD' : 'PROTECTED'}
           </div>
         </div>
 
         {/* Content Row: Operations & Menu item card */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', marginBottom: '20px' }}>
           {/* Operations List */}
           <div
             style={{
@@ -276,14 +314,14 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
               flexDirection: 'column',
               gap: '10px',
               fontFamily: theme.fonts.mono,
-              fontSize: '16px',
+              fontSize: '17px',
               color: theme.colors.textMuted,
             }}
           >
             {props.database.operations.map((op, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ color: theme.colors.accentYellow }}>↺</span>
-                <span>{op}</span>
+                <span style={{ color: theme.colors.accentYellow, fontWeight: 900 }}>↺</span>
+                <span style={{ color: theme.colors.textPrimary }}>{op}</span>
               </div>
             ))}
           </div>
@@ -295,17 +333,18 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
                 border: `1.5px solid ${theme.colors.cardBorder}`,
                 borderRadius: '14px',
                 padding: '14px 20px',
-                backgroundColor: theme.colors.cardBgSolid,
-                minWidth: '150px',
+                backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                minWidth: '160px',
               }}
             >
               <div
                 style={{
                   fontFamily: theme.fonts.mono,
-                  fontSize: '13px',
+                  fontSize: '14px',
                   letterSpacing: '1.5px',
                   color: theme.colors.textMuted,
-                  marginBottom: '6px',
+                  marginBottom: '4px',
+                  fontWeight: 700,
                 }}
               >
                 {props.database.updatedItem.label}
@@ -313,10 +352,10 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
               <div
                 style={{
                   fontFamily: theme.fonts.sans,
-                  fontSize: '22px',
+                  fontSize: '24px',
                   fontWeight: 800,
                   color: theme.colors.textPrimary,
-                  marginBottom: '6px',
+                  marginBottom: '4px',
                 }}
               >
                 {props.database.updatedItem.name}
@@ -326,7 +365,7 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
                   style={{
                     fontSize: '18px',
                     textDecoration: 'line-through',
-                    color: theme.colors.textMuted,
+                    color: theme.colors.accentCoral,
                   }}
                 >
                   {props.database.updatedItem.oldValue}
@@ -334,13 +373,13 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
                 <span
                   style={{
                     fontSize: '24px',
-                    fontWeight: 800,
-                    color: theme.colors.accentYellow,
+                    fontWeight: 900,
+                    color: theme.colors.accentEmerald,
                   }}
                 >
                   {props.database.updatedItem.newValue}
                 </span>
-                <span style={{ fontSize: '14px', color: theme.colors.accentYellow }}>✏️</span>
+                <span style={{ fontSize: '15px' }}>✓</span>
               </div>
             </div>
           )}
@@ -353,22 +392,24 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
               display: 'flex',
               justifyContent: 'space-between',
               fontFamily: theme.fonts.mono,
-              fontSize: '14px',
+              fontSize: '16px',
               letterSpacing: '2px',
               color: theme.colors.textMuted,
               marginBottom: '8px',
-              fontWeight: 600,
+              fontWeight: 700,
             }}
           >
-            <span>LOAD</span>
-            <span>{Math.round(loadBarProgress)}%</span>
+            <span>DATABASE LOAD</span>
+            <span style={{ color: loadBarProgress > 60 ? theme.colors.accentCoral : theme.colors.accentEmerald, fontWeight: 900 }}>
+              {Math.round(loadBarProgress)}% {loadBarProgress > 60 ? '(CRUSHED)' : '(ABSORBED)'}
+            </span>
           </div>
           <div
             style={{
               width: '100%',
-              height: '14px',
+              height: '16px',
               backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              borderRadius: '7px',
+              borderRadius: '8px',
               overflow: 'hidden',
             }}
           >
@@ -376,12 +417,12 @@ export const CacheLayerScene: React.FC<{ props: CacheLayerProps }> = ({ props })
               style={{
                 width: `${loadBarProgress}%`,
                 height: '100%',
-                backgroundColor: loadBarProgress > 60 ? theme.colors.accentYellow : theme.colors.accentEmerald,
-                borderRadius: '7px',
+                backgroundColor: loadBarProgress > 60 ? theme.colors.accentCoral : theme.colors.accentEmerald,
+                borderRadius: '8px',
                 boxShadow:
                   loadBarProgress > 60
-                    ? `0 0 12px ${theme.colors.accentYellowGlow}`
-                    : '0 0 12px rgba(16, 185, 129, 0.4)',
+                    ? `0 0 16px ${theme.colors.accentCoralGlow}`
+                    : '0 0 16px rgba(16, 185, 129, 0.5)',
                 transition: 'width 0.2s ease',
               }}
             />

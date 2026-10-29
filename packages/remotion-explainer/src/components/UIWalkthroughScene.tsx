@@ -251,3 +251,4 @@ export const UIWalkthroughScene: React.FC<{ props: UIWalkthroughProps }> = ({ pr
     </div>
   );
 };
+

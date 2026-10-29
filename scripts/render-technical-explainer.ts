@@ -6,6 +6,7 @@ import { sampleExplainerStoryboard } from '../packages/remotion-explainer/src/sa
 import { RemotionRendererService } from '../apps/api/src/render/remotion-renderer.js';
 import { AssetValidator } from '../apps/api/src/media/asset-validator.js';
 import { QAEngine } from '../apps/api/src/media/qa-engine.js';
+import { VisualFrameInspector } from '../apps/api/src/media/visual-frame-inspector.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -14,28 +15,21 @@ async function main() {
   const service = new RemotionRendererService();
   const validator = new AssetValidator();
   const qaEngine = new QAEngine();
+  const visualInspector = new VisualFrameInspector();
 
   const outputDir = path.resolve(process.cwd(), 'exports');
   await fs.mkdir(outputDir, { recursive: true });
   const filename = 'master_technical_explainer_food_app.mp4';
   const outputPath = path.join(outputDir, filename);
 
-  let totalDurationSeconds = 55.7;
-
-  // Check if already rendered or render now
-  try {
-    await fs.access(outputPath);
-    console.log(`✓ Master video already rendered at: ${outputPath}`);
-  } catch {
-    console.log('1. Rendering complete technical explainer MP4 with synchronized narration and captions...');
-    const result = await service.renderExplainerVideo(sampleExplainerStoryboard, {
-      outputDir,
-      filename,
-      compositionId: 'TechnicalExplainer-9x16',
-    });
-    totalDurationSeconds = result.totalDurationSeconds;
-    console.log(`✓ MP4 rendered successfully: ${result.outputPath}`);
-  }
+  console.log('1. Rendering complete technical explainer MP4 with synchronized narration, dynamic pacing, and captions...');
+  const result = await service.renderExplainerVideo(sampleExplainerStoryboard, {
+    outputDir,
+    filename,
+    compositionId: 'TechnicalExplainer-9x16',
+  });
+  let totalDurationSeconds = result.totalDurationSeconds;
+  console.log(`✓ MP4 rendered successfully: ${result.outputPath} (duration: ${totalDurationSeconds}s)`);
 
   console.log('2. Running FFprobe validation and QA verification...');
   const probeData = await validator.inspectMedia(outputPath);
@@ -140,8 +134,14 @@ async function main() {
   }
 
   console.log('3. Extracting representative frames across rendered MP4...');
-  const framesDir = path.resolve(process.cwd(), 'exports', 'explainer_frames');
+  const framesDir = path.resolve(process.cwd(), 'exports', 'master_explainer_frames_v2');
   await fs.mkdir(framesDir, { recursive: true });
+
+  const artifactDir = path.resolve(
+    '/home/arjun/.gemini/antigravity/brain/72c69153-1b09-4f0e-8702-17f63c0312e8',
+    'master_explainer_frames_v2'
+  );
+  await fs.mkdir(artifactDir, { recursive: true });
 
   // Timestamps corresponding to midpoints of the 7 audio-driven scenes:
   // Scene 1: ~0 - 6s   (midpoint: 3s)
@@ -173,8 +173,22 @@ async function main() {
       framePath,
       '-y',
     ]);
+    const artifactPath = path.join(artifactDir, `scene_${name}.png`);
+    await fs.copyFile(framePath, artifactPath);
     console.log(`  Extracted frame for Scene ${i + 1} (${name}) at ${timestamp}s -> ${framePath}`);
   }
+
+  console.log('4. Detailed Visual Frame Inspection Report:');
+  const visualReport = await visualInspector.inspectVideo(outputPath, {
+    durationSeconds: totalDurationSeconds,
+    sampleIntervalSeconds: 3.0,
+  });
+  console.log(`  Overall Visual QA Passed: ${visualReport.overallPassed ? 'YES' : 'NO'}`);
+  console.log(`  Total Frames Inspected: ${visualReport.totalFramesInspected}`);
+  console.log(`  Average Vertical Canvas Fill: ${(visualReport.averageVerticalFillRatio * 100).toFixed(1)}%`);
+  console.log(`  Safe Area Pass Rate: ${(visualReport.safeAreaPassRate * 100).toFixed(1)}%`);
+  console.log(`  Subtitle Coverage Rate: ${(visualReport.subtitleCoverageRate * 100).toFixed(1)}%`);
+  console.log(`  Contrast Pass Rate: ${(visualReport.contrastPassRate * 100).toFixed(1)}%`);
 
   console.log('=== Production Complete & Verified ===');
 }

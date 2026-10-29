@@ -286,3 +286,4 @@ export const StatisticsScene: React.FC<{ props: StatisticsProps }> = ({ props })
     </div>
   );
 };
+
