@@ -12,6 +12,7 @@ import {
   type VideoCategory,
 } from '@creatorflow/shared';
 import type { Planner } from './types.js';
+import { TechnicalExplainerPlanner } from './explainer-planner.js';
 
 function splitDuration(totalSeconds: number, sceneCount: number): number[] {
   const base = Math.floor(totalSeconds / sceneCount);
@@ -78,7 +79,29 @@ export class CreativeDirector implements Planner {
     return 'educational';
   }
 
+  isTechnicalExplainer(project: Project): boolean {
+    if (project.visualStyle === 'technical_explainer') return true;
+    const lower = `${project.prompt} ${project.title}`.toLowerCase();
+    return (
+      lower.includes('system design') ||
+      lower.includes('rate limit') ||
+      lower.includes('swiggy') ||
+      lower.includes('zomato') ||
+      lower.includes('database') ||
+      lower.includes('microservice') ||
+      lower.includes('caching') ||
+      lower.includes('distributed') ||
+      lower.includes('redis') ||
+      lower.includes('postgres') ||
+      lower.includes('architecture')
+    );
+  }
+
   async generateScript(project: Project): Promise<ScriptData> {
+    if (this.isTechnicalExplainer(project)) {
+      return this.generateTechnicalExplainerScript(project);
+    }
+
     const category = this.detectCategory(project.prompt, project.category);
     const lang = project.language;
     const duration = project.durationSeconds;
@@ -94,6 +117,10 @@ export class CreativeDirector implements Planner {
   }
 
   async generateScenePlan(project: Project, script: ScriptData): Promise<UniversalScenePlanData> {
+    if (this.isTechnicalExplainer(project)) {
+      return this.generateTechnicalExplainerScenes(project, script);
+    }
+
     const category = this.detectCategory(project.prompt, project.category);
     const lang = project.language;
 
@@ -104,6 +131,61 @@ export class CreativeDirector implements Planner {
       return this.generateDocumentaryScenes(project, script, lang);
     }
     return this.generateEducational3DScenes(project, script, lang);
+  }
+
+  async generateTechnicalExplainerScript(project: Project): Promise<ScriptData> {
+    const planner = new TechnicalExplainerPlanner();
+    const storyboard = await planner.planStoryboard(project.prompt, {
+      aspectRatio: project.aspectRatio === '16:9' ? '16:9' : '9:16',
+    });
+
+    return scriptSchema.parse({
+      title: storyboard.title,
+      hook: storyboard.scenes[0]?.narration || 'Technical Deep Dive',
+      scenes: storyboard.scenes.map((s) => ({
+        sceneNumber: s.sceneNumber,
+        title: `${s.header.actNumber} / ${s.header.actTitle}`,
+        narration: s.narration,
+        visualDescription: `Blueprint motion graphic showing ${s.componentType} with dark grid background and neon accents`,
+        durationSeconds: s.durationSeconds,
+      })),
+      totalDurationSeconds: storyboard.totalDurationSeconds,
+    });
+  }
+
+  async generateTechnicalExplainerScenes(project: Project, script: ScriptData): Promise<UniversalScenePlanData> {
+    const planner = new TechnicalExplainerPlanner();
+    const storyboard = await planner.planStoryboard(project.prompt, {
+      aspectRatio: project.aspectRatio === '16:9' ? '16:9' : '9:16',
+    });
+
+    const scenes: UniversalScene[] = storyboard.scenes.map((s, idx) => ({
+      id: `scene_${s.sceneNumber}`,
+      sceneNumber: s.sceneNumber,
+      sceneType: s.componentType,
+      durationSeconds: s.durationSeconds,
+      visualDescription: script.scenes[idx]?.visualDescription || `Technical explainer scene ${s.sceneNumber}`,
+      renderStrategy: {
+        type: 'remotion_explainer',
+        componentType: s.componentType,
+        header: s.header,
+        props: s.props,
+      },
+      audio: {
+        narrationEnabled: project.narrationEnabled,
+        text: s.narration,
+        language: project.language,
+        volume: 1,
+      },
+      subtitles: s.subtitles,
+      textOverlays: [],
+      transition: 'fade',
+    }));
+
+    return universalScenePlanSchema.parse({
+      scenes,
+      totalDurationSeconds: storyboard.totalDurationSeconds,
+    });
   }
 
   async generateStoryboard(project: Project, script: ScriptData): Promise<StoryboardData> {

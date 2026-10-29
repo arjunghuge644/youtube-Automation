@@ -16,7 +16,7 @@ export const videoCategorySchema = z.enum(videoCategories);
 export type VideoCategory = z.infer<typeof videoCategorySchema>;
 
 export const visualStyles = [
-  'stylized_3d', 'motion_graphics', 'documentary_footage', 'minimal', 'cinematic',
+  'stylized_3d', 'motion_graphics', 'documentary_footage', 'minimal', 'cinematic', 'technical_explainer',
 ] as const;
 export const visualStyleSchema = z.enum(visualStyles);
 export type VisualStyle = z.infer<typeof visualStyleSchema>;
@@ -206,6 +206,193 @@ export const compositedSceneStrategySchema = z.object({
   layers: z.array(z.record(z.string(), z.any())),
 }).strict();
 
+// Remotion Technical Explainer Component Schemas
+export const remotionExplainerComponentTypes = [
+  'interview_question',
+  'database_transaction',
+  'cache_layer',
+  'search_engine',
+  'geospatial_map',
+  'system_architecture',
+  'kinetic_typography',
+] as const;
+export const remotionExplainerComponentTypeSchema = z.enum(remotionExplainerComponentTypes);
+export type RemotionExplainerComponentType = z.infer<typeof remotionExplainerComponentTypeSchema>;
+
+export const interviewOptionSchema = z.object({
+  id: z.number().int(),
+  label: z.string().trim().min(1),
+  text: z.string().trim().min(1),
+  strikethrough: z.boolean().default(false),
+  badge: z.string().trim().optional(),
+}).strict();
+
+export const interviewQuestionPropsSchema = z.object({
+  headerText: z.string().trim().default('INTERVIEWER:'),
+  timestampText: z.string().trim().default('● 00:03'),
+  question: z.string().trim().min(1),
+  underlinedKeyword: z.string().trim().optional(),
+  punchline: z.string().trim().min(1),
+  highlightWord: z.string().trim().optional(),
+  options: z.array(interviewOptionSchema).default([]),
+}).strict();
+export type InterviewQuestionProps = z.infer<typeof interviewQuestionPropsSchema>;
+
+export const transactionStepSchema = z.object({
+  stepNumber: z.number().int(),
+  title: z.string().trim().min(1),
+  status: z.enum(['success', 'failed', 'pending']),
+  errorMsg: z.string().trim().optional(),
+}).strict();
+
+export const databaseTransactionPropsSchema = z.object({
+  transaction: z.object({
+    time: z.string().trim(),
+    item: z.string().trim(),
+    amount: z.string().trim(),
+    paymentMethod: z.string().trim(),
+    status: z.enum(['PENDING', 'PAID', 'FAILED']).default('PENDING'),
+  }).strict(),
+  database: z.object({
+    name: z.string().trim(),
+    type: z.string().trim().default('main database'),
+    columns: z.array(z.object({
+      label: z.string().trim(),
+      value: z.string().trim(),
+      color: z.string().optional(),
+    }).strict()),
+  }).strict(),
+  steps: z.array(transactionStepSchema).default([]),
+  crashAlert: z.object({
+    triggerAtStep: z.number().int(),
+    message: z.string().trim(),
+  }).strict().optional(),
+  impactText: z.object({
+    text: z.string().trim(),
+    color: z.string().optional(),
+  }).strict().optional(),
+}).strict();
+export type DatabaseTransactionProps = z.infer<typeof databaseTransactionPropsSchema>;
+
+export const cacheLayerPropsSchema = z.object({
+  clientGrid: z.object({
+    rows: z.number().int().min(1).max(5).default(2),
+    columns: z.number().int().min(1).max(12).default(9),
+    activeCount: z.number().int().default(14),
+  }).strict(),
+  cache: z.object({
+    name: z.string().trim().default('CACHE · REDIS (in memory)'),
+    status: z.enum(['HIT', 'MISS']).default('MISS'),
+    ttl: z.string().trim().default('0:00'),
+  }).strict(),
+  transferBadge: z.string().trim().default('MENU COPY'),
+  database: z.object({
+    name: z.string().trim().default('POSTGRES main database'),
+    loadPercentage: z.number().min(0).max(100).default(80),
+    operations: z.array(z.string().trim()).default([]),
+    updatedItem: z.object({
+      label: z.string().trim(),
+      name: z.string().trim(),
+      oldValue: z.string().trim(),
+      newValue: z.string().trim(),
+    }).strict().optional(),
+  }).strict(),
+  incomingOrders: z.array(z.string().trim()).default([]),
+}).strict();
+export type CacheLayerProps = z.infer<typeof cacheLayerPropsSchema>;
+
+export const searchEnginePropsSchema = z.object({
+  searchQuery: z.string().trim(),
+  hasTypo: z.boolean().default(true),
+  typoLabel: z.string().trim().default('TYPO'),
+  engine: z.object({
+    name: z.string().trim().default('SEARCH ENGINE'),
+    technology: z.string().trim().default('Elasticsearch'),
+    tokens: z.array(z.string().trim()).default([]),
+    fuzzyMatch: z.string().trim().optional(),
+  }).strict(),
+}).strict();
+export type SearchEngineProps = z.infer<typeof searchEnginePropsSchema>;
+
+export const geospatialMapPropsSchema = z.object({
+  customer: z.object({
+    label: z.string().trim().default('Customer'),
+    radiusKm: z.number().default(3),
+  }).strict(),
+  riderCount: z.number().int().min(5).max(100).default(35),
+  dataStreamLabel: z.string().trim().default('LOCATION WRITES'),
+  writeCount: z.string().trim().default('2,434'),
+  loadPercentage: z.number().min(0).max(100).default(75),
+  indexCard: z.object({
+    title: z.string().trim().default('GEO INDEX · geohash cells'),
+    subtitle: z.string().trim().default('e.g. Redis GEO, in memory'),
+  }).strict(),
+}).strict();
+export type GeospatialMapProps = z.infer<typeof geospatialMapPropsSchema>;
+
+export const systemArchitecturePropsSchema = z.object({
+  sourceOfTruth: z.object({
+    badge: z.string().trim().default('SOURCE OF TRUTH'),
+    type: z.string().trim().default('RELATIONAL DB'),
+    name: z.string().trim().default('POSTGRES'),
+    details: z.string().trim().default('orders + money'),
+  }).strict(),
+  branches: z.array(z.object({
+    title: z.string().trim(),
+    subtitle: z.string().trim(),
+    badge: z.string().trim().optional(),
+  }).strict()).default([]),
+  statusNotes: z.array(z.object({
+    icon: z.enum(['check', 'cross']),
+    text: z.string().trim(),
+    accent: z.enum(['emerald', 'coral', 'yellow']),
+  }).strict()).default([]),
+  punchline: z.object({
+    text: z.string().trim(),
+    highlightWord: z.string().trim().optional(),
+  }).strict().optional(),
+}).strict();
+export type SystemArchitectureProps = z.infer<typeof systemArchitecturePropsSchema>;
+
+export const kineticTypographyPropsSchema = z.object({
+  heading: z.string().trim().optional(),
+  subheading: z.string().trim().optional(),
+  punchline: z.string().trim(),
+  highlightWord: z.string().trim().optional(),
+  badges: z.array(z.object({
+    icon: z.enum(['check', 'cross', 'alert', 'bolt']),
+    text: z.string().trim(),
+    status: z.enum(['success', 'danger', 'warning', 'info']),
+  }).strict()).default([]),
+  card: z.object({
+    tag: z.string().trim(),
+    title: z.string().trim(),
+    subtitle: z.string().trim(),
+  }).strict().optional(),
+}).strict();
+export type KineticTypographyProps = z.infer<typeof kineticTypographyPropsSchema>;
+
+export const explainerHeaderSchema = z.object({
+  topicTag: z.string().trim().min(1).max(60).default('SYSTEM DESIGN · 001'),
+  channelHandle: z.string().trim().min(1).max(60).default('@creatorflow'),
+  actNumber: z.string().trim().min(1).max(10).default('00'),
+  actTitle: z.string().trim().min(1).max(80).default('OVERVIEW'),
+}).strict();
+export type ExplainerHeader = z.infer<typeof explainerHeaderSchema>;
+
+export const remotionExplainerStrategySchema = z.object({
+  type: z.literal('remotion_explainer'),
+  componentType: remotionExplainerComponentTypeSchema,
+  header: explainerHeaderSchema.default({
+    topicTag: 'SYSTEM DESIGN · 001',
+    channelHandle: '@creatorflow',
+    actNumber: '00',
+    actTitle: 'OVERVIEW',
+  }),
+  props: z.record(z.string(), z.any()),
+}).strict();
+export type RemotionExplainerStrategy = z.infer<typeof remotionExplainerStrategySchema>;
+
 export const renderStrategySchema = z.discriminatedUnion('type', [
   motionGraphicsStrategySchema,
   procedural3DStrategySchema,
@@ -214,6 +401,7 @@ export const renderStrategySchema = z.discriminatedUnion('type', [
   aiVideoStrategySchema,
   stockFootageStrategySchema,
   compositedSceneStrategySchema,
+  remotionExplainerStrategySchema,
 ]);
 export type RenderStrategy = z.infer<typeof renderStrategySchema>;
 export type RenderStrategyType = RenderStrategy['type'];
@@ -356,6 +544,41 @@ export interface ProductionState {
   storyboardVersion?: number;
   activeJob?: ProductionJob;
 }
+
+// Complete Technical Explainer Storyboard
+export const technicalExplainerSceneSchema = z.object({
+  id: z.string().trim().min(1),
+  sceneNumber: z.number().int().min(1),
+  componentType: remotionExplainerComponentTypeSchema,
+  durationSeconds: z.number().min(1).max(120),
+  durationInFrames: z.number().int().min(30).optional(),
+  narration: z.string().trim().default(''),
+  narrationAudioUrl: z.string().optional(),
+  subtitles: z.array(subtitleItemSchema).default([]),
+  header: explainerHeaderSchema.default({
+    topicTag: 'SYSTEM DESIGN · 001',
+    channelHandle: '@creatorflow',
+    actNumber: '00',
+    actTitle: 'OVERVIEW',
+  }),
+  props: z.record(z.string(), z.any()),
+}).strict();
+export type TechnicalExplainerScene = z.infer<typeof technicalExplainerSceneSchema>;
+
+export const technicalExplainerStoryboardSchema = z.object({
+  topicId: z.string().trim().min(1),
+  title: z.string().trim().min(1),
+  category: z.string().trim().default('system_design'),
+  aspectRatio: z.enum(['9:16', '16:9', '1:1']).default('9:16'),
+  fps: z.number().int().default(30),
+  width: z.number().int().default(720),
+  height: z.number().int().default(1280),
+  scenes: z.array(technicalExplainerSceneSchema).min(1).max(25),
+  totalDurationSeconds: z.number().min(2),
+  totalDurationInFrames: z.number().int().min(60).optional(),
+}).strict();
+export type TechnicalExplainerStoryboard = z.infer<typeof technicalExplainerStoryboardSchema>;
+
 
 // Workflow Engine & Persistent DAG Models
 export const taskStates = [

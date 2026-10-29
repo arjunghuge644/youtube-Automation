@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
-  "engines": {"node": ">=22.12.0", "npm": ">=10"},
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "npm run build -w @creatorflow/shared && concurrently -k -n api,web 'npm run dev -w @creatorflow/api' 'npm run dev -w @creatorflow/web'",
     "build": "npm run build -w @creatorflow/shared && npm run build -w @creatorflow/api && npm run build -w @creatorflow/web",
@@ -26,5 +32,18 @@
     "typescript": "~5.9.3",
     "vitest": "5.0.5"
   },
-  "config": {"mongodbMemoryServer": {"disablePostinstall": true, "version": "8.0.34", "downloadDir": ".cache/mongodb", "preferGlobalPath": false}}
+  "config": {
+    "mongodbMemoryServer": {
+      "disablePostinstall": true,
+      "version": "8.0.34",
+      "downloadDir": ".cache/mongodb",
+      "preferGlobalPath": false
+    }
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.539",
+    "@remotion/cli": "4.0.539",
+    "@remotion/renderer": "4.0.539",
+    "remotion": "4.0.539"
+  }
 }

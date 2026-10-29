@@ -148,11 +148,28 @@ export class GenerativeImageAdapter implements MediaEngine {
   }
 }
 
+export class RemotionExplainerEngine implements MediaEngine {
+  readonly id = 'engine_remotion_explainer';
+  readonly name = 'Remotion Technical Explainer Engine';
+  readonly capabilities: EngineCapability[] = ['motion_graphics'];
+  readonly supportedStrategies: RenderStrategyType[] = ['remotion_explainer'];
+  readonly dependencies = ['Remotion', 'React', 'Chromium'];
+
+  async isAvailable(): Promise<boolean> {
+    return true; // Local Remotion engine with Chrome Headless Shell
+  }
+
+  estimateCost(scene: UniversalScene): ResourceEstimate {
+    return { estimatedTimeSeconds: Math.max(1, scene.durationSeconds * 0.4), memoryMb: 512 };
+  }
+}
+
 export function createDefaultEngineRegistry(): MediaEngineRegistry {
   const registry = new MediaEngineRegistry();
   registry.register(new MotionGraphicsEngine());
   registry.register(new Procedural3DEngine());
   registry.register(new CompositedMediaEngine());
+  registry.register(new RemotionExplainerEngine());
   registry.register(new GenerativeVideoAdapter(false));
   registry.register(new GenerativeImageAdapter(false));
   return registry;

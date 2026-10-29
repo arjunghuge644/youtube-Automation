@@ -3,7 +3,8 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Project, UniversalScenePlanData } from '@creatorflow/shared';
+import type { Project, UniversalScenePlanData, TechnicalExplainerStoryboard } from '@creatorflow/shared';
+import { RemotionRendererService } from './remotion-renderer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,7 +31,59 @@ export class TimelinePipeline {
     const filename = `${safeTitle}_${project.aspectRatio.replace(':', 'x')}_v${project.version || 1}.mp4`;
     const outputPath = options.outputPath || path.join(exportsDir, filename);
 
-    // Create temp files for inputs
+    // If technical explainer, delegate to RemotionRendererService
+    const hasExplainerScenes = scenePlan.scenes.some(
+      (s) => s.renderStrategy.type === 'remotion_explainer'
+    );
+
+    if (hasExplainerScenes || project.visualStyle === 'technical_explainer') {
+      const remotionService = new RemotionRendererService();
+      const isLandscape = project.aspectRatio === '16:9';
+
+      const storyboard: TechnicalExplainerStoryboard = {
+        topicId: project.title,
+        title: project.title,
+        category: 'system_design',
+        aspectRatio: isLandscape ? '16:9' : '9:16',
+        fps: options.fps || 30,
+        width: isLandscape ? 1920 : 720,
+        height: isLandscape ? 1080 : 1280,
+        scenes: scenePlan.scenes.map((s) => ({
+          id: s.id,
+          sceneNumber: s.sceneNumber,
+          componentType:
+            s.renderStrategy.type === 'remotion_explainer'
+              ? (s.renderStrategy as any).componentType
+              : 'kinetic_typography',
+          durationSeconds: s.durationSeconds,
+          narration: s.audio?.text || s.visualDescription,
+          subtitles: s.subtitles || [],
+          header:
+            s.renderStrategy.type === 'remotion_explainer' && (s.renderStrategy as any).header
+              ? (s.renderStrategy as any).header
+              : {
+                  topicTag: project.title.toUpperCase(),
+                  channelHandle: '@creatorflow',
+                  actNumber: String(s.sceneNumber).padStart(2, '0'),
+                  actTitle: s.sceneType.toUpperCase(),
+                },
+          props:
+            s.renderStrategy.type === 'remotion_explainer'
+              ? (s.renderStrategy as any).props
+              : {},
+        })),
+        totalDurationSeconds: scenePlan.totalDurationSeconds,
+      };
+
+      const result = await remotionService.renderExplainerVideo(storyboard, {
+        outputDir: exportsDir,
+        filename,
+        compositionId: isLandscape ? 'TechnicalExplainer-16x9' : 'TechnicalExplainer-9x16',
+      });
+      return result.outputPath;
+    }
+
+    // Default procedural python/ffmpeg renderer
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'creatorflow-render-'));
     const projectPath = path.join(tempDir, 'project.json');
     const scenePlanPath = path.join(tempDir, 'scene_plan.json');

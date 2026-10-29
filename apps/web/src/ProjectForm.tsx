@@ -46,6 +46,7 @@ const visualStyleLabels: Record<ProjectInput['visualStyle'], { name: string; des
   documentary_footage: { name: 'Documentary Media', desc: 'Curated media, ken burns motion, panoramic framing.' },
   minimal: { name: 'Minimalist', desc: 'Clean compositions, restrained colors, strong typography.' },
   cinematic: { name: 'Cinematic', desc: 'High dynamic contrast, letterboxed depth, atmospheric lighting.' },
+  technical_explainer: { name: 'Technical Explainer', desc: 'Dark blueprint grid, system diagrams, database flows, kinetic typography.' },
 };
 
 export function ProjectForm({

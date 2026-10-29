@@ -1,0 +1,172 @@
+import path from 'path';
+import fs from 'fs/promises';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import type { TechnicalExplainerStoryboard, TechnicalExplainerScene } from '@creatorflow/shared';
+import { LocalSpeechSynthesizer } from '../providers/tts/local-synthesizer.js';
+import { AssetValidator } from '../media/asset-validator.js';
+
+const execFileAsync = promisify(execFile);
+
+export interface RenderExplainerOptions {
+  outputDir?: string;
+  filename?: string;
+  compositionId?: 'TechnicalExplainer-9x16' | 'TechnicalExplainer-16x9';
+  concurrency?: number;
+}
+
+export class RemotionRendererService {
+  private tts = new LocalSpeechSynthesizer();
+  private validator = new AssetValidator();
+
+  /**
+   * Automatically prepares audio narration, measures durations, aligns frame counts,
+   * generates subtitles, and renders an MP4 video using Remotion.
+   */
+  async renderExplainerVideo(
+    storyboard: TechnicalExplainerStoryboard,
+    options: RenderExplainerOptions = {}
+  ): Promise<{
+    outputPath: string;
+    totalDurationSeconds: number;
+    totalFrames: number;
+    validated: boolean;
+    metadata: Record<string, unknown>;
+  }> {
+    const rootDir = process.cwd();
+    const outputDir = options.outputDir || path.join(rootDir, 'exports');
+    await fs.mkdir(outputDir, { recursive: true });
+
+    const filename = options.filename || `explainer_${Date.now()}.mp4`;
+    const outputPath = path.join(outputDir, filename);
+    const compositionId =
+      options.compositionId ||
+      (storyboard.aspectRatio === '16:9' ? 'TechnicalExplainer-16x9' : 'TechnicalExplainer-9x16');
+
+    const fps = storyboard.fps || 30;
+    const tempDir = path.join(rootDir, 'storage', 'temp', `explainer_${Date.now()}`);
+    await fs.mkdir(tempDir, { recursive: true });
+
+    const processedScenes: TechnicalExplainerScene[] = [];
+    let totalFrames = 0;
+    let totalSeconds = 0;
+
+    // 1. Audio-driven timing calculation per scene
+    for (const scene of storyboard.scenes) {
+      let sceneAudioUrl: string | undefined = scene.narrationAudioUrl;
+      let sceneDuration = scene.durationSeconds || 3;
+
+      if (scene.narration && scene.narration.trim()) {
+        try {
+          const ttsResult = await this.tts.synthesizeSpeech({
+            taskId: `task_narration_${scene.id}`,
+            text: scene.narration,
+            language: 'en',
+            projectId: 'temp_explainer',
+            sceneId: scene.id,
+          });
+
+          // Convert audio to base64 Data URL so Remotion embeds it seamlessly without static file 404s
+          const audioBuffer = await fs.readFile(ttsResult.filePath);
+          const mimeType = ttsResult.filePath.endsWith('.aac') ? 'audio/aac' : 'audio/wav';
+          sceneAudioUrl = `data:${mimeType};base64,${audioBuffer.toString('base64')}`;
+
+          if (ttsResult.durationSeconds && ttsResult.durationSeconds > 0) {
+            sceneDuration = Math.max(2.5, Number(ttsResult.durationSeconds.toFixed(2)));
+          }
+        } catch (ttsErr) {
+          console.warn(`[RemotionRendererService] TTS generation failed for scene ${scene.sceneNumber}, using planned duration:`, ttsErr);
+        }
+      }
+
+      const durationInFrames = Math.max(30, Math.ceil(sceneDuration * fps));
+      totalFrames += durationInFrames;
+      totalSeconds += sceneDuration;
+
+      // Ensure subtitles are populated
+      const subtitles =
+        scene.subtitles && scene.subtitles.length > 0
+          ? scene.subtitles
+          : [
+              {
+                text: scene.narration || '',
+                startSeconds: 0.2,
+                endSeconds: Math.max(0.5, sceneDuration - 0.2),
+              },
+            ];
+
+      processedScenes.push({
+        ...scene,
+        durationSeconds: sceneDuration,
+        durationInFrames,
+        narrationAudioUrl: sceneAudioUrl,
+        subtitles,
+      });
+    }
+
+    const finalizedStoryboard: TechnicalExplainerStoryboard = {
+      ...storyboard,
+      fps,
+      scenes: processedScenes,
+      totalDurationSeconds: Number(totalSeconds.toFixed(2)),
+      totalDurationInFrames: totalFrames,
+    };
+
+    // 2. Write props file for Remotion CLI
+    const propsFilePath = path.join(tempDir, 'props.json');
+    await fs.writeFile(propsFilePath, JSON.stringify(finalizedStoryboard, null, 2), 'utf8');
+
+    // 3. Render MP4 via Remotion CLI
+    const entryPath = path.join(rootDir, 'packages', 'remotion-explainer', 'src', 'remotion-entry.ts');
+    const npxCmd = 'npx';
+    const renderArgs = [
+      'remotion',
+      'render',
+      entryPath,
+      compositionId,
+      outputPath,
+      `--props=${propsFilePath}`,
+      '--concurrency=2',
+      '--log=warn',
+      '--overwrite',
+    ];
+
+    try {
+      await execFileAsync(npxCmd, renderArgs, {
+        cwd: rootDir,
+        env: {
+          ...process.env,
+          NODE_ENV: 'production',
+        },
+      });
+    } catch (renderError) {
+      throw new Error(`Remotion render failed: ${(renderError as Error).message}`);
+    }
+
+    // 4. Validate output with FFprobe
+    const validation = await this.validator.validateVideoAsset(outputPath, {
+      expectedAspectRatio: storyboard.aspectRatio === '16:9' ? '16:9' : '9:16',
+    });
+    if (!validation.valid) {
+      throw new Error(`Rendered video failed FFprobe validation: ${validation.issues.join(', ')}`);
+    }
+
+    const inspectedMedia = await this.validator.inspectMedia(outputPath);
+    const durationSeconds = Number(inspectedMedia?.format?.duration || 0);
+
+    // Clean up temporary files
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch {
+      // Non-blocking cleanup
+    }
+
+    return {
+      outputPath,
+      totalDurationSeconds: durationSeconds,
+      totalFrames,
+      validated: true,
+      metadata: inspectedMedia?.format || {},
+    };
+  }
+}

@@ -153,13 +153,14 @@ export class QAEngine {
           // Check aspect ratio
           const width = vStream?.width || 0;
           const height = vStream?.height || 0;
+          const ratio = height > 0 ? width / height : 0;
           let aspectCorrect = true;
           if (project.aspectRatio === '9:16') {
-            aspectCorrect = width === 1080 && height === 1920;
+            aspectCorrect = Math.abs(ratio - 9 / 16) < 0.02;
           } else if (project.aspectRatio === '16:9') {
-            aspectCorrect = width === 1920 && height === 1080;
+            aspectCorrect = Math.abs(ratio - 16 / 9) < 0.02;
           } else if (project.aspectRatio === '1:1') {
-            aspectCorrect = width === 1080 && height === 1080;
+            aspectCorrect = Math.abs(ratio - 1.0) < 0.02;
           }
 
           checks.push({
